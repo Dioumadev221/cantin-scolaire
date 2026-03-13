@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
+import 'gerant_screen.dart';
+import 'admin_screen.dart';
 import 'inscription_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -21,9 +23,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.isLoggedIn && next.user != null) {
+        final role = next.user!.role;
+        Widget destination;
+
+        if (role == 'administrateur') {
+          destination = AdminScreen(user: next.user!);
+        } else if (role == 'gerant_cantine') {
+          destination = GerantScreen(user: next.user!);
+        } else {
+          destination = HomeScreen(user: next.user!);
+        }
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => HomeScreen(user: next.user!)),
+          MaterialPageRoute(builder: (_) => destination),
         );
       }
     });
@@ -146,14 +159,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Center(
                 child: GestureDetector(
                   onTap: () async {
-                    // Aller vers inscription et récupérer email+password
                     final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const InscriptionScreen(),
                       ),
                     );
-                    // Remplir automatiquement les champs login
                     if (result != null) {
                       _emailController.text = result['email'];
                       _passwordController.text = result['password'];
