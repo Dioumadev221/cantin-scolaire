@@ -11,7 +11,8 @@ class InscriptionUsecase {
     String prenom,
     String email,
     String password,
+    String role,
   ) async {
-    return await _repository.inscription(nom, prenom, email, password);
+    return await _repository.inscription(nom, prenom, email, password, role);
   }
 }

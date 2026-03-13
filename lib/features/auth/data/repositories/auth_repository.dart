@@ -16,8 +16,9 @@ class AuthRepositoryImpl implements AuthRepository {
     String prenom,
     String email,
     String password,
+    String role,
   ) async {
-    return await _datasource.inscription(nom, prenom, email, password);
+    return await _datasource.inscription(nom, prenom, email, password, role);
   }
 
   @override
@@ -28,5 +29,15 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserEntity?> getCurrentUser() async {
     return await _datasource.getCurrentUser();
+  }
+
+  @override
+  Future<bool> validateGerantCode(String code) async {
+    return await _datasource.validateGerantCode(code);
+  }
+
+  @override
+  Future<void> setGerantCode(String code) async {
+    await _datasource.setGerantCode(code);
   }
 }

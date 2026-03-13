@@ -7,35 +7,40 @@ class AuthRemoteDatasource {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<UserModel> login(String email, String password) async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    // Chercher le document dans Firestore
-    final doc = await _firestore
-        .collection('users')
-        .doc(credential.user!.uid)
-        .get();
-
-    // Si le document n'existe pas encore → on le crée
-    if (!doc.exists) {
-      final user = UserModel(
-        uid: credential.user!.uid,
-        nom: '',
-        prenom: '',
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
-        role: 'etudiant',
-        soldeWallet: 0.0,
+        password: password,
       );
-      await _firestore
+
+      final doc = await _firestore
           .collection('users')
           .doc(credential.user!.uid)
-          .set(user.toFirestore());
-      return user;
-    }
+          .get();
 
-    return UserModel.fromFirestore(doc);
+      if (!doc.exists) {
+        final user = UserModel(
+          uid: credential.user!.uid,
+          nom: '',
+          prenom: '',
+          email: email,
+          role: 'etudiant',
+          soldeWallet: 0.0,
+        );
+        await _firestore
+            .collection('users')
+            .doc(credential.user!.uid)
+            .set(user.toFirestore());
+        return user;
+      }
+
+      return UserModel.fromFirestore(doc);
+    } on FirebaseAuthException catch (e) {
+      // On re-lance l'exception pour qu'elle remonte jusqu'à AuthNotifier
+      rethrow;
+    } catch (e) {
+      throw Exception('Erreur Firestore : $e');
+    }
   }
 
   Future<UserModel> inscription(
@@ -43,6 +48,7 @@ class AuthRemoteDatasource {
     String prenom,
     String email,
     String password,
+    String role,
   ) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -54,7 +60,7 @@ class AuthRemoteDatasource {
         nom: nom,
         prenom: prenom,
         email: email,
-        role: 'etudiant',
+        role: role,
         soldeWallet: 0.0,
       );
       await _firestore
@@ -65,14 +71,12 @@ class AuthRemoteDatasource {
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message);
     } catch (e) {
-      // Auth créé mais Firestore a échoué
-      // On retourne quand même l'utilisateur
       final user = UserModel(
         uid: _auth.currentUser!.uid,
         nom: nom,
         prenom: prenom,
         email: email,
-        role: 'etudiant',
+        role: role,
         soldeWallet: 0.0,
       );
       return user;
@@ -88,5 +92,19 @@ class AuthRemoteDatasource {
     if (user == null) return null;
     final doc = await _firestore.collection('users').doc(user.uid).get();
     return UserModel.fromFirestore(doc);
+  }
+
+  Future<bool> validateGerantCode(String code) async {
+    final doc = await _firestore.collection('app_config').doc('gerant').get();
+    if (!doc.exists) return false;
+    final data = doc.data();
+    return data != null && (data['code'] ?? '') == code;
+  }
+
+  Future<void> setGerantCode(String code) async {
+    await _firestore.collection('app_config').doc('gerant').set({
+      'code': code,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

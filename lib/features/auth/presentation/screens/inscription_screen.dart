@@ -14,6 +14,7 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
   final _prenomController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String _selectedRole = 'etudiant';
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +67,8 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
                 '••••••••',
                 obscure: true,
               ),
+              const SizedBox(height: 16),
+              _buildRoleDropdown(),
               if (authState.error != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -80,6 +83,26 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
                   onPressed: authState.isLoading
                       ? null
                       : () async {
+                          final role = _selectedRole;
+
+                          // Pour un gérant, le mot de passe doit être le code partagé défini par l'admin
+                          if (role == 'gerant_cantine') {
+                            final password = _passwordController.text.trim();
+                            final isValid = await ref
+                                .read(authProvider.notifier)
+                                .validateGerantCode(password);
+                            if (!isValid) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Mot de passe invalide pour un gérant',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
                           // Sauvegarder email et password avant inscription
                           final email = _emailController.text.trim();
                           final password = _passwordController.text.trim();
@@ -91,6 +114,7 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
                                 _prenomController.text.trim(),
                                 email,
                                 password,
+                                role,
                               );
 
                           // Si inscription réussie → retour vers login
@@ -148,6 +172,39 @@ class _InscriptionScreenState extends ConsumerState<InscriptionScreen> {
           obscureText: obscure,
           decoration: InputDecoration(
             hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Rôle', style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedRole,
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedRole = newValue!;
+            });
+          },
+          items: const [
+            DropdownMenuItem(value: 'etudiant', child: Text('Étudiant')),
+            DropdownMenuItem(
+              value: 'gerant_cantine',
+              child: Text('Gérant de cantine'),
+            ),
+          ],
+          decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
