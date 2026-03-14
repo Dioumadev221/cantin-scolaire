@@ -268,7 +268,6 @@ class _PlatsScreenState extends State<PlatsScreen> {
 
         var docs = snapshot.data!.docs;
 
-        // Filtre catégorie
         if (_selectedCategorie != 'Tous') {
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
@@ -277,7 +276,6 @@ class _PlatsScreenState extends State<PlatsScreen> {
           }).toList();
         }
 
-        // Filtre recherche
         if (_searchQuery.isNotEmpty) {
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
@@ -323,6 +321,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
 
   Widget _buildPlatCard(String id, Map<String, dynamic> data) {
     final dispo = _isDispo(data['disponible']);
+    final repas = data['repas'] ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -383,12 +382,33 @@ class _PlatsScreenState extends State<PlatsScreen> {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        '${data['categorie'] ?? ''} · ${data['tempsPreparation'] ?? 0} min',
-                        style: const TextStyle(
-                          color: Color(0xFF8A8A8A),
-                          fontSize: 11,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '${data['categorie'] ?? ''} · ${data['tempsPreparation'] ?? 0} min',
+                            style: const TextStyle(
+                              color: Color(0xFF8A8A8A),
+                              fontSize: 11,
+                            ),
+                          ),
+                          if (repas.isNotEmpty) ...[
+                            const Text(
+                              ' · ',
+                              style: TextStyle(
+                                color: Color(0xFF8A8A8A),
+                                fontSize: 11,
+                              ),
+                            ),
+                            Text(
+                              _getRepasLabel(repas),
+                              style: const TextStyle(
+                                color: Color(0xFFFF6B35),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -506,6 +526,21 @@ class _PlatsScreenState extends State<PlatsScreen> {
     }
   }
 
+  String _getRepasLabel(String repas) {
+    switch (repas) {
+      case 'petit_dejeuner':
+        return '🌅 Petit déj';
+      case 'dejeuner':
+        return '☀️ Déjeuner';
+      case 'diner':
+        return '🌙 Dîner';
+      case 'boisson':
+        return '🥤 Boisson';
+      default:
+        return '';
+    }
+  }
+
   void _toggleDispo(String id, bool current) {
     _firestore.collection('plats').doc(id).update({'disponible': !current});
   }
@@ -551,6 +586,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
       text: data?['tempsPreparation']?.toString() ?? '',
     );
     String categorie = data?['categorie'] ?? 'express';
+    String repas = data?['repas'] ?? 'petit_dejeuner';
 
     showModalBottomSheet(
       context: context,
@@ -560,7 +596,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
+        builder: (context, setModalState) => SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             20,
             20,
@@ -614,6 +650,42 @@ class _PlatsScreenState extends State<PlatsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Repas
+              const Text(
+                'Repas',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: repas,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFF5F0EB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'petit_dejeuner',
+                    child: Text('🌅 Petit déjeuner'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'dejeuner',
+                    child: Text('☀️ Déjeuner'),
+                  ),
+                  DropdownMenuItem(value: 'diner', child: Text('🌙 Dîner')),
+                  DropdownMenuItem(value: 'boisson', child: Text('🥤 Boisson')),
+                ],
+                onChanged: (v) => setModalState(() => repas = v!),
+              ),
+              const SizedBox(height: 12),
+              // Catégorie
               const Text(
                 'Catégorie',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -662,6 +734,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
                       'description': descCtrl.text.trim(),
                       'prix': double.tryParse(prixCtrl.text) ?? 0,
                       'categorie': categorie,
+                      'repas': repas,
                       'tempsPreparation': int.tryParse(tempsCtrl.text) ?? 0,
                       'disponible': true,
                       'updatedAt': FieldValue.serverTimestamp(),
