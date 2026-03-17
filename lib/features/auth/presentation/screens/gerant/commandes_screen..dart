@@ -1,728 +1,387 @@
-import 'package:cantine_scolaire/features/auth/presentation/services/notifications_screen.dart';
+import 'package:cantine_scolaire/features/auth/presentation/services/notification_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../auth/domain/entities/user_entity.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/notification_service.dart';
-import '../login_screen.dart';
-import 'profil_gerant_screen.dart';
 
-class CommandesScreen extends ConsumerStatefulWidget {
+class CommandesScreen extends StatefulWidget {
   final UserEntity user;
   const CommandesScreen({super.key, required this.user});
-
   @override
-  ConsumerState<CommandesScreen> createState() => _CommandesScreenState();
+  State<CommandesScreen> createState() => _CommandesScreenState();
 }
 
-class _CommandesScreenState extends ConsumerState<CommandesScreen> {
+class _CommandesScreenState extends State<CommandesScreen> {
   String _filter = 'Toutes';
-  final _firestore = FirebaseFirestore.instance;
-
-  final List<String> _filters = [
-    'Toutes',
-    'Reçues',
-    'En cuisine',
-    'Prêtes',
-    'Récupérées',
-  ];
+  final _db = FirebaseFirestore.instance;
+  final _filters = ['Toutes', 'Reçues', 'En cuisine', 'Prêtes', 'Récupérées', 'Annulées'];
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildHeader(),
-        _buildFilters(),
-        Expanded(child: _buildBody()),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(children: [
+    _buildStats(),
+    _buildFilters(),
+    Expanded(child: _buildList()),
+  ]);
 
-  // ── HEADER ───────────────────────────────────────────────────────────────────
+  // ── STATS BAR ────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader() {
-    return Container(
-      color: const Color(0xFFFF6B35),
-      padding: const EdgeInsets.fromLTRB(20, 52, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Titre + badge en direct
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF22C55E),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'En direct',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Commandes',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              // Droite : cloche + avatar menu
-              Row(
-                children: [
-                  // Cloche notifications
-                  NotificationBell(user: widget.user),
-                  const SizedBox(width: 8),
-                  // Compteur commandes actives
-                  StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('commandes')
-                        .where('statut', whereIn: ['recue', 'en_cuisine'])
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      final count = snapshot.data?.docs.length ?? 0;
-                      return Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$count',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  // Avatar + menu
-                  _buildAvatarMenu(),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: _firestore.collection('commandes').snapshots(),
-            builder: (context, snapshot) {
-              final docs = snapshot.data?.docs ?? [];
-              final today = DateTime.now();
-              final todayDocs = docs.where((d) {
-                final data = d.data() as Map<String, dynamic>;
-                final ts = data['createdAt'] as Timestamp?;
-                if (ts == null) return false;
-                final date = ts.toDate();
-                return date.day == today.day &&
-                    date.month == today.month &&
-                    date.year == today.year;
-              }).toList();
-              final recettes = todayDocs.fold<double>(0, (sum, d) {
-                final data = d.data() as Map<String, dynamic>;
-                return sum + (data['montantTotal'] ?? 0).toDouble();
-              });
-              return Row(
-                children: [
-                  _buildKpi(
-                    '${todayDocs.length}',
-                    'Aujourd\'hui',
-                    '▲ +3 vs hier',
-                  ),
-                  const SizedBox(width: 8),
-                  _buildKpi(
-                    '${recettes.toStringAsFixed(0)} F',
-                    'Recettes',
-                    '▲ +12%',
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStats() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _db.collection('commandes').snapshots(),
+      builder: (_, snap) {
+        final docs = snap.data?.docs ?? [];
+        final today = DateTime.now();
+        final todayDocs = docs.where((d) {
+          final ts = (d.data() as Map)['createdAt'] as Timestamp?;
+          if (ts == null) return false;
+          final dt = ts.toDate();
+          return dt.day == today.day && dt.month == today.month && dt.year == today.year;
+        }).toList();
 
-  Widget _buildAvatarMenu() {
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 54),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white,
-      elevation: 8,
-      onSelected: (value) async {
-        if (value == 'profil') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProfilGerantScreen(user: widget.user),
+        final actives = docs.where((d) =>
+            ['recue', 'en_cuisine'].contains((d.data() as Map)['statut'])).length;
+        final recettes = todayDocs.fold<double>(0, (s, d) =>
+            s + ((d.data() as Map)['montantTotal'] ?? 0).toDouble());
+
+        return Container(
+          color: const Color(0xFFFF6B35),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          child: Row(children: [
+            // Live badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                  color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+              child: Row(children: [
+                Container(width: 6, height: 6,
+                    decoration: const BoxDecoration(
+                        color: Color(0xFF22C55E), shape: BoxShape.circle)),
+                const SizedBox(width: 5),
+                const Text('En direct', style: TextStyle(color: Colors.white, fontSize: 11)),
+              ]),
             ),
-          );
-        } else if (value == 'deconnexion') {
-          await ref.read(authProvider.notifier).logout();
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
-            );
-          }
-        }
+            const SizedBox(width: 12),
+            _statPill('$actives', 'actives'),
+            const SizedBox(width: 10),
+            _statPill('${todayDocs.length}', 'aujourd\'hui'),
+            const SizedBox(width: 10),
+            _statPill('${recettes.toStringAsFixed(0)} F', 'recettes'),
+          ]),
+        );
       },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'profil',
-          height: 48,
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3EE),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.person_outline,
-                  size: 16,
-                  color: Color(0xFFFF6B35),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Mon profil',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(height: 1),
-        PopupMenuItem(
-          value: 'deconnexion',
-          height: 48,
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.logout,
-                  size: 16,
-                  color: Color(0xFFEF4444),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Se déconnecter',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFEF4444),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white24,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white38),
-        ),
-        child: Center(
-          child: Text(
-            '${widget.user.prenom[0]}${widget.user.nom[0]}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _buildKpi(String val, String label, String trend) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white24,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              val,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            Text(
-              trend,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _statPill(String val, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(20)),
+    child: Text('$val $label', style: const TextStyle(color: Colors.white, fontSize: 11)),
+  );
 
-  // ── FILTRES ───────────────────────────────────────────────────────────────────
+  // ── FILTRES ──────────────────────────────────────────────────────────────────
 
   Widget _buildFilters() {
-    return Container(
-      color: Colors.white,
-      child: SingleChildScrollView(
+    return SizedBox(
+      height: 46,
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        child: Row(
-          children: _filters.map((f) {
-            final isActive = f == _filter;
-            return GestureDetector(
-              onTap: () => setState(() => _filter = f),
-              child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF1A1A1A) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isActive
-                        ? const Color(0xFF1A1A1A)
-                        : const Color(0xFFEDEDED),
-                  ),
-                ),
-                child: Text(
-                  f,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isActive ? Colors.white : const Color(0xFF8A8A8A),
-                  ),
-                ),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        itemCount: _filters.length,
+        itemBuilder: (_, i) {
+          final active = _filters[i] == _filter;
+          return GestureDetector(
+            onTap: () => setState(() => _filter = _filters[i]),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: active ? const Color(0xFF1a1a1a) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: active ? const Color(0xFF1a1a1a) : const Color(0xFFEDEDED)),
               ),
-            );
-          }).toList(),
-        ),
+              child: Text(_filters[i], style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w500,
+                  color: active ? Colors.white : const Color(0xFF6B7280))),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // ── BODY ─────────────────────────────────────────────────────────────────────
+  // ── LISTE COMMANDES ──────────────────────────────────────────────────────────
 
-  Widget _buildBody() {
+  Widget _buildList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _getCommandesStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
-          );
+      stream: _db.collection('commandes').snapshots(),
+      builder: (_, snap) {
+        var docs = snap.data?.docs ?? [];
+
+        // Tri par date décroissante (client-side, pas d'index requis)
+        docs = List.from(docs);
+        (docs as List).sort((a, b) {
+          final ta = ((a.data() as Map)['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+          final tb = ((b.data() as Map)['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+          return tb.compareTo(ta);
+        });
+
+        // Appliquer le filtre
+        if (_filter != 'Toutes') {
+          final statMap = {
+            'Reçues': 'recue', 'En cuisine': 'en_cuisine',
+            'Prêtes': 'prete', 'Récupérées': 'recuperee', 'Annulées': 'annulee',
+          };
+          final statut = statMap[_filter];
+          if (statut != null) {
+            docs = docs.where((d) => (d.data() as Map)['statut'] == statut).toList();
+          }
         }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('📦', style: TextStyle(fontSize: 48)),
-                const SizedBox(height: 12),
-                Text(
-                  _filter == 'Toutes'
-                      ? 'Aucune commande'
-                      : 'Aucune commande $_filter',
-                  style: const TextStyle(
-                    color: Color(0xFF8A8A8A),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+
+        if (docs.isEmpty) return Center(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('📭', style: TextStyle(fontSize: 52)),
+            const SizedBox(height: 12),
+            Text(
+              _filter == 'Toutes' ? 'Aucune commande' : 'Aucune commande "$_filter"',
+              style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 14),
             ),
-          );
-        }
+          ],
+        ));
+
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           itemCount: docs.length,
-          itemBuilder: (context, i) {
+          itemBuilder: (_, i) {
             final data = docs[i].data() as Map<String, dynamic>;
-            return _buildCommandeCard(docs[i].id, data);
+            return _buildCard(docs[i].id, data);
           },
         );
       },
     );
   }
 
-  Stream<QuerySnapshot> _getCommandesStream() {
-    final ref = _firestore.collection('commandes');
-    switch (_filter) {
-      case 'Reçues':
-        return ref.where('statut', isEqualTo: 'recue').snapshots();
-      case 'En cuisine':
-        return ref.where('statut', isEqualTo: 'en_cuisine').snapshots();
-      case 'Prêtes':
-        return ref.where('statut', isEqualTo: 'prete').snapshots();
-      case 'Récupérées':
-        return ref.where('statut', isEqualTo: 'recuperee').snapshots();
-      default:
-        return ref.orderBy('createdAt', descending: true).snapshots();
-    }
-  }
+  // ── CARTE COMMANDE ───────────────────────────────────────────────────────────
 
-  // ── CARTE COMMANDE ────────────────────────────────────────────────────────────
-
-  Widget _buildCommandeCard(String id, Map<String, dynamic> data) {
+  Widget _buildCard(String id, Map<String, dynamic> data) {
     final statut = data['statut'] ?? 'recue';
+    final numero = data['numero'] ?? '—';
+    final etudiantNom = data['etudiantNom'] ?? '—';
+    final nomPlat = data['nomPlat'] ?? '—';
+    final montant = (data['montantTotal'] ?? 0).toDouble();
     final ts = data['createdAt'] as Timestamp?;
-    final timeAgo = ts != null ? _timeAgo(ts.toDate()) : '';
+    final isBoisson = data['isBoisson'] == true;
+    final statutInfo = _statutInfo(statut);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDEDED), width: 0.5),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data['numero'] ?? 'CMD-000',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      timeAgo,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF8A8A8A),
-                      ),
-                    ),
-                  ],
-                ),
-                _buildStatusPill(statut),
-              ],
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEDEDED), width: 0.5),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+              blurRadius: 8, offset: const Offset(0, 3))]),
+      child: Column(children: [
+        // ── En-tête ──────────────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+          child: Row(children: [
+            // Emoji type
+            Container(width: 46, height: 46,
+              decoration: BoxDecoration(
+                  color: isBoisson ? const Color(0xFFEFF6FF) : const Color(0xFFFFF3EE),
+                  borderRadius: BorderRadius.circular(14)),
+              child: Center(child: Text(isBoisson ? '🥤' : '🍽️',
+                  style: const TextStyle(fontSize: 22))),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text('#$numero',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A))),
+                const SizedBox(width: 8),
                 Container(
-                  width: 38,
-                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3EE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
-                    child: Text('🍛', style: TextStyle(fontSize: 20)),
-                  ),
+                      color: statutInfo['bg'] as Color,
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(statutInfo['label'] as String,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                          color: statutInfo['fg'] as Color)),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data['etudiantNom'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        'Commande · ${data['modePaiement'] ?? 'wallet'}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF8A8A8A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${data['montantTotal'] ?? 0} FCFA',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFFF6B35),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (statut != 'recuperee')
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Color(0xFFEDEDED), width: 0.5),
-                ),
-              ),
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  if (statut != 'prete') ...[
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _updateStatut(id, data),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6B35),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            _getNextAction(statut),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (statut == 'prete')
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _updateStatut(id, data),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6B35),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            '✓ Récupérée',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (statut != 'prete')
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            _updateStatut(id, data, forceStatut: 'annulee'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F0EB),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'Annuler',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF8A8A8A),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ── STATUS PILL ───────────────────────────────────────────────────────────────
-
-  Widget _buildStatusPill(String statut) {
-    Color bg, text;
-    String label;
-    switch (statut) {
-      case 'recue':
-        bg = const Color(0xFFDBEAFE);
-        text = const Color(0xFF1E40AF);
-        label = 'Reçue';
-        break;
-      case 'en_cuisine':
-        bg = const Color(0xFFFEF3C7);
-        text = const Color(0xFF92400E);
-        label = 'En cuisine';
-        break;
-      case 'prete':
-        bg = const Color(0xFFD1FAE5);
-        text = const Color(0xFF065F46);
-        label = 'Prête ✓';
-        break;
-      case 'recuperee':
-        bg = const Color(0xFFF3F4F6);
-        text = const Color(0xFF6B7280);
-        label = 'Récupérée';
-        break;
-      default:
-        bg = const Color(0xFFFEE2E2);
-        text = const Color(0xFF991B1B);
-        label = 'Annulée';
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: text,
+              ]),
+              Text(etudiantNom,
+                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+              Text(nomPlat,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: Color(0xFFFF6B35)),
+                  overflow: TextOverflow.ellipsis),
+            ])),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text('${montant.toStringAsFixed(0)} F',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A1A))),
+              if (ts != null)
+                Text(_timeAgo(ts.toDate()),
+                    style: const TextStyle(fontSize: 10, color: Color(0xFFAAAAAA))),
+            ]),
+          ]),
         ),
+
+        // ── Barre progression ─────────────────────────────────────────────────
+        if (statut != 'annulee')
+          _buildProgress(statut, isBoisson),
+
+        // ── Actions ───────────────────────────────────────────────────────────
+        if (statut != 'recuperee' && statut != 'annulee')
+          _buildActions(id, data),
+      ]),
+    );
+  }
+
+  Widget _buildProgress(String statut, bool isBoisson) {
+    final steps = isBoisson
+        ? ['recue', 'prete', 'recuperee']
+        : ['recue', 'en_cuisine', 'prete', 'recuperee'];
+    final labels = isBoisson
+        ? ['Reçue', 'Prête', 'Livrée']
+        : ['Reçue', 'En cuisine', 'Prête', 'Livrée'];
+    final idx = steps.indexOf(statut);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: Row(
+        children: List.generate(steps.length, (i) {
+          final done = i <= idx;
+          return Expanded(child: Row(children: [
+            Expanded(child: Column(children: [
+              Row(children: [
+                if (i > 0) Expanded(child: Container(height: 2,
+                    color: i <= idx ? const Color(0xFF22C55E) : const Color(0xFFEDEDED))),
+                Container(width: 18, height: 18,
+                  decoration: BoxDecoration(
+                    color: done ? const Color(0xFF22C55E) : const Color(0xFFEDEDED),
+                    shape: BoxShape.circle,
+                  ),
+                  child: done ? const Icon(Icons.check, color: Colors.white, size: 11) : null,
+                ),
+                if (i < steps.length - 1)
+                  Expanded(child: Container(height: 2,
+                      color: i < idx ? const Color(0xFF22C55E) : const Color(0xFFEDEDED))),
+              ]),
+              const SizedBox(height: 3),
+              Text(labels[i], style: TextStyle(fontSize: 8,
+                  color: done ? const Color(0xFF22C55E) : const Color(0xFFAAAAAA),
+                  fontWeight: done ? FontWeight.w700 : FontWeight.w400)),
+            ])),
+          ]));
+        }),
       ),
     );
   }
 
-  String _getNextAction(String statut) {
-    switch (statut) {
-      case 'recue':
-        return '→ Passer en cuisine';
-      case 'en_cuisine':
-        return '✓ Marquer prête';
-      default:
-        return '→ Suivant';
+  Widget _buildActions(String id, Map<String, dynamic> data) {
+    final statut = data['statut'] ?? 'recue';
+    final isBoisson = data['isBoisson'] == true;
+
+    // Prochain statut logique
+    String? nextStatut;
+    String? nextLabel;
+    if (isBoisson) {
+      if (statut == 'recue' || statut == 'prete') { nextStatut = 'recuperee'; nextLabel = '✅ Marquer livrée'; }
+    } else {
+      if (statut == 'recue') { nextStatut = 'en_cuisine'; nextLabel = '👨‍🍳 En cuisine'; }
+      else if (statut == 'en_cuisine') { nextStatut = 'prete'; nextLabel = '🔔 Marquer prête'; }
+      else if (statut == 'prete') { nextStatut = 'recuperee'; nextLabel = '✅ Livrée'; }
     }
+
+    return Container(
+      decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFEDEDED), width: 0.5))),
+      child: Row(children: [
+        // Annuler
+        if (statut == 'recue' || statut == 'en_cuisine')
+          Expanded(child: GestureDetector(
+            onTap: () => _changeStatut(id, data, 'annulee'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('❌ Annuler', textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: Color(0xFFEF4444))),
+            ),
+          )),
+        if (nextStatut != null && (statut == 'recue' || statut == 'en_cuisine')) ...[
+          Container(width: 0.5, height: 36, color: const Color(0xFFEDEDED)),
+        ],
+        // Action principale
+        if (nextStatut != null)
+          Expanded(child: GestureDetector(
+            onTap: () => _changeStatut(id, data, nextStatut!),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(nextLabel!, textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                      color: Color(0xFFFF6B35))),
+            ),
+          )),
+      ]),
+    );
   }
 
-  // ── UPDATE STATUT + NOTIFICATION ──────────────────────────────────────────────
+  // ── CHANGER STATUT + ENVOYER NOTIFICATION ────────────────────────────────────
 
-  Future<void> _updateStatut(
-    String id,
-    Map<String, dynamic> data, {
-    String? forceStatut,
-  }) async {
-    final current = data['statut'] ?? 'recue';
-    final String next;
-    if (forceStatut != null) {
-      next = forceStatut;
-    } else {
-      switch (current) {
-        case 'recue':
-          next = 'en_cuisine';
-          break;
-        case 'en_cuisine':
-          next = 'prete';
-          break;
-        case 'prete':
-          next = 'recuperee';
-          break;
-        default:
-          next = 'annulee';
-      }
+  Future<void> _changeStatut(String id, Map<String, dynamic> data, String nouveauStatut) async {
+    final etudiantId = data['etudiantId'] as String?;
+    final numero = data['numero'] ?? '?';
+    final nomPlat = data['nomPlat'] ?? '';
+
+    // Rembourser si annulation
+    if (nouveauStatut == 'annulee' && etudiantId != null) {
+      final montant = (data['montantTotal'] ?? 0).toDouble();
+      await _db.collection('users').doc(etudiantId).update({
+        'soldeWallet': FieldValue.increment(montant),
+      });
     }
 
-    // Mise à jour Firestore
-    await _firestore.collection('commandes').doc(id).update({
-      'statut': next,
+    // Mettre à jour Firestore
+    await _db.collection('commandes').doc(id).update({
+      'statut': nouveauStatut,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // Remboursement si annulée par le gérant
-    if (next == 'annulee') {
-      final etudiantId = data['etudiantId'] as String?;
-      final montant = data['montantTotal'] ?? 0;
-      if (etudiantId != null) {
-        await _firestore.collection('users').doc(etudiantId).update({
-          'soldeWallet': FieldValue.increment(montant),
-        });
-      }
-    }
-
-    // Envoi notification à l'étudiant
-    final etudiantId = data['etudiantId'] as String?;
-    final numero = data['numero'] as String? ?? '';
-    if (etudiantId != null && etudiantId.isNotEmpty) {
-      await NotificationService.notifierChangementStatut(
+    // ── Envoyer la notification à l'étudiant ─────────────────────────────────
+    if (etudiantId != null) {
+      await NotificationService.notifierStatutCommande(
         etudiantId: etudiantId,
-        numero: numero,
         commandeId: id,
-        nouveauStatut: next,
+        commandeNumero: numero,
+        nouveauStatut: nouveauStatut,
+        nomPlat: nomPlat,
       );
+    }
+  }
+
+  // ── UTILS ─────────────────────────────────────────────────────────────────────
+
+  Map<String, dynamic> _statutInfo(String statut) {
+    switch (statut) {
+      case 'recue':
+        return {'label': '⏳ Reçue', 'bg': const Color(0xFFFEF3C7), 'fg': const Color(0xFFD97706)};
+      case 'en_cuisine':
+        return {'label': '👨‍🍳 En cuisine', 'bg': const Color(0xFFEFF6FF), 'fg': const Color(0xFF2563EB)};
+      case 'prete':
+        return {'label': '🔔 Prête !', 'bg': const Color(0xFFF0FDF4), 'fg': const Color(0xFF16A34A)};
+      case 'recuperee':
+        return {'label': '✅ Livrée', 'bg': const Color(0xFFF5F5F5), 'fg': const Color(0xFF6B7280)};
+      case 'annulee':
+        return {'label': '❌ Annulée', 'bg': const Color(0xFFFEE2E2), 'fg': const Color(0xFFDC2626)};
+      default:
+        return {'label': statut, 'bg': const Color(0xFFF5F5F5), 'fg': const Color(0xFF6B7280)};
     }
   }
 
   String _timeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inSeconds < 60) return 'À l\'instant';
     if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
     return 'Il y a ${diff.inDays}j';

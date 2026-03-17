@@ -2,6 +2,7 @@ import 'package:cantine_scolaire/features/auth/domain/entities/user_entity.dart'
 import 'package:cantine_scolaire/features/auth/presentation/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class NotificationsScreen extends StatelessWidget {
   final UserEntity user;
   const NotificationsScreen({super.key, required this.user});
