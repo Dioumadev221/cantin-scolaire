@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
+import 'profil_etudiant_screen.dart';
+import '../services/notifications_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final UserEntity user;
@@ -112,7 +114,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ],
                   ),
-                  _buildAvatarMenu(),
+                  Row(
+                    children: [
+                      NotificationBell(user: widget.user),
+                      const SizedBox(width: 8),
+                      _buildAvatarMenu(),
+                    ],
+                  ),
                 ],
               ),
               const Spacer(),
@@ -247,7 +255,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
         } else if (value == 'profil') {
-          _showProfil();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfilEtudiantScreen(user: widget.user),
+            ),
+          );
         }
       },
       itemBuilder: (context) => [

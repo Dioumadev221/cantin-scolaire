@@ -1,10 +1,9 @@
+import 'package:cantine_scolaire/features/auth/presentation/screens/gerant/commandes_screen..dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/domain/entities/user_entity.dart';
-import 'gerant/commandes_screen..dart';
 import 'gerant/plats_screen.dart';
 import 'gerant/menus_screen.dart';
-import 'gerant/profil_gerant_screen.dart';
 
 class GerantScreen extends ConsumerStatefulWidget {
   final UserEntity user;
@@ -25,7 +24,6 @@ class _GerantScreenState extends ConsumerState<GerantScreen> {
       PlatsScreen(user: widget.user),
       CommandesScreen(user: widget.user),
       MenusScreen(user: widget.user),
-      ProfilGerantScreen(user: widget.user),
     ];
   }
 
@@ -47,7 +45,6 @@ class _GerantScreenState extends ConsumerState<GerantScreen> {
                 _buildNavItem(0, '🍽️', 'Plats'),
                 _buildNavItem(1, '📦', 'Commandes'),
                 _buildNavItem(2, '📅', 'Menus'),
-                _buildNavItem(3, '👤', 'Profil'),
               ],
             ),
           ),

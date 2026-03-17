@@ -1,16 +1,22 @@
+import 'package:cantine_scolaire/features/auth/presentation/services/notifications_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../auth/domain/entities/user_entity.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/notification_service.dart';
+import '../login_screen.dart';
+import 'profil_gerant_screen.dart';
 
-class CommandesScreen extends StatefulWidget {
+class CommandesScreen extends ConsumerStatefulWidget {
   final UserEntity user;
   const CommandesScreen({super.key, required this.user});
 
   @override
-  State<CommandesScreen> createState() => _CommandesScreenState();
+  ConsumerState<CommandesScreen> createState() => _CommandesScreenState();
 }
 
-class _CommandesScreenState extends State<CommandesScreen> {
+class _CommandesScreenState extends ConsumerState<CommandesScreen> {
   String _filter = 'Toutes';
   final _firestore = FirebaseFirestore.instance;
 
@@ -33,6 +39,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
     );
   }
 
+  // ── HEADER ───────────────────────────────────────────────────────────────────
+
   Widget _buildHeader() {
     return Container(
       color: const Color(0xFFFF6B35),
@@ -43,6 +51,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Titre + badge en direct
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -88,32 +97,44 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   ),
                 ],
               ),
-              StreamBuilder<QuerySnapshot>(
-                stream: _firestore
-                    .collection('commandes')
-                    .where('statut', whereIn: ['recue', 'en_cuisine'])
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  final count = snapshot.data?.docs.length ?? 0;
-                  return Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+              // Droite : cloche + avatar menu
+              Row(
+                children: [
+                  // Cloche notifications
+                  NotificationBell(user: widget.user),
+                  const SizedBox(width: 8),
+                  // Compteur commandes actives
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _firestore
+                        .collection('commandes')
+                        .where('statut', whereIn: ['recue', 'en_cuisine'])
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data?.docs.length ?? 0;
+                      return Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                        child: Center(
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  // Avatar + menu
+                  _buildAvatarMenu(),
+                ],
               ),
             ],
           ),
@@ -140,7 +161,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
                 children: [
                   _buildKpi(
                     '${todayDocs.length}',
-                    "Aujourd'hui",
+                    'Aujourd\'hui',
                     '▲ +3 vs hier',
                   ),
                   const SizedBox(width: 8),
@@ -154,6 +175,111 @@ class _CommandesScreenState extends State<CommandesScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarMenu() {
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 54),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      elevation: 8,
+      onSelected: (value) async {
+        if (value == 'profil') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfilGerantScreen(user: widget.user),
+            ),
+          );
+        } else if (value == 'deconnexion') {
+          await ref.read(authProvider.notifier).logout();
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          }
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'profil',
+          height: 48,
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3EE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.person_outline,
+                  size: 16,
+                  color: Color(0xFFFF6B35),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Mon profil',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        PopupMenuItem(
+          value: 'deconnexion',
+          height: 48,
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.logout,
+                  size: 16,
+                  color: Color(0xFFEF4444),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Se déconnecter',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFEF4444),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white24,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white38),
+        ),
+        child: Center(
+          child: Text(
+            '${widget.user.prenom[0]}${widget.user.nom[0]}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -194,6 +320,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
       ),
     );
   }
+
+  // ── FILTRES ───────────────────────────────────────────────────────────────────
 
   Widget _buildFilters() {
     return Container(
@@ -236,6 +364,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
       ),
     );
   }
+
+  // ── BODY ─────────────────────────────────────────────────────────────────────
 
   Widget _buildBody() {
     return StreamBuilder<QuerySnapshot>(
@@ -295,6 +425,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
     }
   }
 
+  // ── CARTE COMMANDE ────────────────────────────────────────────────────────────
+
   Widget _buildCommandeCard(String id, Map<String, dynamic> data) {
     final statut = data['statut'] ?? 'recue';
     final ts = data['createdAt'] as Timestamp?;
@@ -325,7 +457,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
                       ),
                     ),
                     Text(
-                      '$timeAgo',
+                      timeAgo,
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF8A8A8A),
@@ -398,7 +530,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   if (statut != 'prete') ...[
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _updateStatut(id, statut),
+                        onTap: () => _updateStatut(id, data),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
@@ -422,7 +554,7 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   if (statut == 'prete')
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _updateStatut(id, statut),
+                        onTap: () => _updateStatut(id, data),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
@@ -444,7 +576,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
                   if (statut != 'prete')
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _updateStatut(id, 'annulee'),
+                        onTap: () =>
+                            _updateStatut(id, data, forceStatut: 'annulee'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
@@ -470,6 +603,8 @@ class _CommandesScreenState extends State<CommandesScreen> {
       ),
     );
   }
+
+  // ── STATUS PILL ───────────────────────────────────────────────────────────────
 
   Widget _buildStatusPill(String statut) {
     Color bg, text;
@@ -528,25 +663,61 @@ class _CommandesScreenState extends State<CommandesScreen> {
     }
   }
 
-  void _updateStatut(String id, String current) {
-    String next;
-    switch (current) {
-      case 'recue':
-        next = 'en_cuisine';
-        break;
-      case 'en_cuisine':
-        next = 'prete';
-        break;
-      case 'prete':
-        next = 'recuperee';
-        break;
-      default:
-        next = 'annulee';
+  // ── UPDATE STATUT + NOTIFICATION ──────────────────────────────────────────────
+
+  Future<void> _updateStatut(
+    String id,
+    Map<String, dynamic> data, {
+    String? forceStatut,
+  }) async {
+    final current = data['statut'] ?? 'recue';
+    final String next;
+    if (forceStatut != null) {
+      next = forceStatut;
+    } else {
+      switch (current) {
+        case 'recue':
+          next = 'en_cuisine';
+          break;
+        case 'en_cuisine':
+          next = 'prete';
+          break;
+        case 'prete':
+          next = 'recuperee';
+          break;
+        default:
+          next = 'annulee';
+      }
     }
-    _firestore.collection('commandes').doc(id).update({
+
+    // Mise à jour Firestore
+    await _firestore.collection('commandes').doc(id).update({
       'statut': next,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Remboursement si annulée par le gérant
+    if (next == 'annulee') {
+      final etudiantId = data['etudiantId'] as String?;
+      final montant = data['montantTotal'] ?? 0;
+      if (etudiantId != null) {
+        await _firestore.collection('users').doc(etudiantId).update({
+          'soldeWallet': FieldValue.increment(montant),
+        });
+      }
+    }
+
+    // Envoi notification à l'étudiant
+    final etudiantId = data['etudiantId'] as String?;
+    final numero = data['numero'] as String? ?? '';
+    if (etudiantId != null && etudiantId.isNotEmpty) {
+      await NotificationService.notifierChangementStatut(
+        etudiantId: etudiantId,
+        numero: numero,
+        commandeId: id,
+        nouveauStatut: next,
+      );
+    }
   }
 
   String _timeAgo(DateTime date) {

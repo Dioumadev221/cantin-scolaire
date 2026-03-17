@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../auth/domain/entities/user_entity.dart';
+import '../../providers/auth_provider.dart';
+import '../login_screen.dart';
+import 'profil_gerant_screen.dart';
 
-class PlatsScreen extends StatefulWidget {
+class PlatsScreen extends ConsumerStatefulWidget {
   final UserEntity user;
   const PlatsScreen({super.key, required this.user});
 
   @override
-  State<PlatsScreen> createState() => _PlatsScreenState();
+  ConsumerState<PlatsScreen> createState() => _PlatsScreenState();
 }
 
-class _PlatsScreenState extends State<PlatsScreen> {
+class _PlatsScreenState extends ConsumerState<PlatsScreen> {
   String _selectedCategorie = 'Tous';
   String _searchQuery = '';
   final _searchCtrl = TextEditingController();
@@ -22,6 +26,16 @@ class _PlatsScreenState extends State<PlatsScreen> {
     'Boissons',
   ];
   final _firestore = FirebaseFirestore.instance;
+
+  // Types de boissons disponibles
+  static const List<Map<String, String>> _typeBoissons = [
+    {'value': 'cafe', 'label': 'Café', 'emoji': '☕'},
+    {'value': 'the', 'label': 'Thé', 'emoji': '🍵'},
+    {'value': 'jus', 'label': 'Jus', 'emoji': '🍊'},
+    {'value': 'eau', 'label': 'Eau', 'emoji': '💧'},
+    {'value': 'lait', 'label': 'Lait', 'emoji': '🥛'},
+    {'value': 'autre', 'label': 'Autre', 'emoji': '🥤'},
+  ];
 
   @override
   void dispose() {
@@ -45,6 +59,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
       ],
     );
   }
+
+  // ── HEADER ───────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Container(
@@ -73,20 +89,110 @@ class _PlatsScreenState extends State<PlatsScreen> {
                   ),
                 ],
               ),
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white38),
+              // ── Avatar + PopupMenu ──────────────────────────────────────────
+              PopupMenuButton<String>(
+                offset: const Offset(0, 54),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Center(
-                  child: Text(
-                    '${widget.user.prenom[0]}${widget.user.nom[0]}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                color: Colors.white,
+                elevation: 8,
+                onSelected: (value) async {
+                  if (value == 'profil') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProfilGerantScreen(user: widget.user),
+                      ),
+                    );
+                  } else if (value == 'deconnexion') {
+                    await ref.read(authProvider.notifier).logout();
+                    if (mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'profil',
+                    height: 48,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF3EE),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: Color(0xFFFF6B35),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Mon profil',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(height: 1),
+                  PopupMenuItem(
+                    value: 'deconnexion',
+                    height: 48,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.logout,
+                            size: 16,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Se déconnecter',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white38),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.user.prenom[0]}${widget.user.nom[0]}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 ),
@@ -148,6 +254,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
     );
   }
 
+  // ── SEARCH ───────────────────────────────────────────────────────────────────
+
   Widget _buildSearch() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -180,11 +288,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
                 _searchCtrl.clear();
                 setState(() => _searchQuery = '');
               },
-              child: const Icon(
-                Icons.close,
-                color: Color(0xFF8A8A8A),
-                size: 16,
-              ),
+              child: const Icon(Icons.close, color: Color(0xFF8A8A8A), size: 16),
             )
           else
             Container(
@@ -201,6 +305,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
     );
   }
 
+  // ── CATÉGORIES ───────────────────────────────────────────────────────────────
+
   Widget _buildCategories() {
     return SizedBox(
       height: 44,
@@ -215,7 +321,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
             onTap: () => setState(() => _selectedCategorie = cat),
             child: Container(
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: isActive ? const Color(0xFFFF6B35) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -231,7 +338,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isActive ? Colors.white : const Color(0xFF8A8A8A),
+                  color:
+                      isActive ? Colors.white : const Color(0xFF8A8A8A),
                 ),
               ),
             ),
@@ -240,6 +348,8 @@ class _PlatsScreenState extends State<PlatsScreen> {
       ),
     );
   }
+
+  // ── LISTE PLATS ──────────────────────────────────────────────────────────────
 
   Widget _buildPlatsList() {
     return StreamBuilder<QuerySnapshot>(
@@ -280,8 +390,10 @@ class _PlatsScreenState extends State<PlatsScreen> {
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
             final nom = (data['nom'] ?? '').toString().toLowerCase();
-            final desc = (data['description'] ?? '').toString().toLowerCase();
-            return nom.contains(_searchQuery) || desc.contains(_searchQuery);
+            final desc =
+                (data['description'] ?? '').toString().toLowerCase();
+            return nom.contains(_searchQuery) ||
+                desc.contains(_searchQuery);
           }).toList();
         }
 
@@ -297,9 +409,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
                       ? 'Aucun résultat pour "$_searchQuery"'
                       : 'Aucun plat dans "$_selectedCategorie"',
                   style: const TextStyle(
-                    color: Color(0xFF8A8A8A),
-                    fontSize: 14,
-                  ),
+                      color: Color(0xFF8A8A8A), fontSize: 14),
                 ),
               ],
             ),
@@ -322,6 +432,10 @@ class _PlatsScreenState extends State<PlatsScreen> {
   Widget _buildPlatCard(String id, Map<String, dynamic> data) {
     final dispo = _isDispo(data['disponible']);
     final repas = data['repas'] ?? '';
+    final isBoisson = (data['categorie'] ?? '').toString().toLowerCase() ==
+        'boissons';
+    final typeBoisson = data['typeBoisson'] ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -347,7 +461,9 @@ class _PlatsScreenState extends State<PlatsScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          _getEmoji(data['categorie'] ?? ''),
+                          isBoisson
+                              ? _getEmojiBoisson(typeBoisson)
+                              : _getEmoji(data['categorie'] ?? ''),
                           style: const TextStyle(fontSize: 30),
                         ),
                       ),
@@ -377,35 +493,28 @@ class _PlatsScreenState extends State<PlatsScreen> {
                       Text(
                         data['nom'] ?? '',
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                            fontSize: 14, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 3),
                       Row(
                         children: [
                           Text(
-                            '${data['categorie'] ?? ''} · ${data['tempsPreparation'] ?? 0} min',
+                            isBoisson
+                                ? '${data['categorie'] ?? ''} · ${_getLabelBoisson(typeBoisson)}'
+                                : '${data['categorie'] ?? ''} · ${data['tempsPreparation'] ?? 0} min',
                             style: const TextStyle(
-                              color: Color(0xFF8A8A8A),
-                              fontSize: 11,
-                            ),
+                                color: Color(0xFF8A8A8A), fontSize: 11),
                           ),
-                          if (repas.isNotEmpty) ...[
-                            const Text(
-                              ' · ',
-                              style: TextStyle(
-                                color: Color(0xFF8A8A8A),
-                                fontSize: 11,
-                              ),
-                            ),
+                          if (!isBoisson && repas.isNotEmpty) ...[
+                            const Text(' · ',
+                                style: TextStyle(
+                                    color: Color(0xFF8A8A8A), fontSize: 11)),
                             Text(
                               _getRepasLabel(repas),
                               style: const TextStyle(
-                                color: Color(0xFFFF6B35),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
+                                  color: Color(0xFFFF6B35),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600),
                             ),
                           ],
                         ],
@@ -428,28 +537,23 @@ class _PlatsScreenState extends State<PlatsScreen> {
           Container(
             decoration: const BoxDecoration(
               border: Border(
-                top: BorderSide(color: Color(0xFFEDEDED), width: 0.5),
-              ),
+                  top: BorderSide(color: Color(0xFFEDEDED), width: 0.5)),
             ),
             child: Row(
               children: [
-                _buildAction(
-                  '✏️ Modifier',
-                  const Color(0xFFFF6B35),
-                  () => _showEditDialog(id, data),
-                ),
+                _buildAction('✏️ Modifier', const Color(0xFFFF6B35),
+                    () => _showEditDialog(id, data)),
                 _buildActionSep(),
                 _buildAction(
                   dispo ? '● Disponible' : '✕ Indispo',
-                  dispo ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                  dispo
+                      ? const Color(0xFF22C55E)
+                      : const Color(0xFFEF4444),
                   () => _toggleDispo(id, dispo),
                 ),
                 _buildActionSep(),
-                _buildAction(
-                  '🗑️ Suppr.',
-                  const Color(0xFFEF4444),
-                  () => _deletePlat(id),
-                ),
+                _buildAction('🗑️ Suppr.', const Color(0xFFEF4444),
+                    () => _deletePlat(id)),
               ],
             ),
           ),
@@ -468,10 +572,9 @@ class _PlatsScreenState extends State<PlatsScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: color),
           ),
         ),
       ),
@@ -482,9 +585,11 @@ class _PlatsScreenState extends State<PlatsScreen> {
     return Container(width: 0.5, height: 36, color: const Color(0xFFEDEDED));
   }
 
+  // ── BOUTON AJOUTER ───────────────────────────────────────────────────────────
+
   Widget _buildAddButton() {
     return GestureDetector(
-      onTap: () => _showAddDialog(),
+      onTap: () => _showTypeSelection(),
       child: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -500,10 +605,9 @@ class _PlatsScreenState extends State<PlatsScreen> {
             Text(
               'Ajouter un nouveau plat',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -511,80 +615,318 @@ class _PlatsScreenState extends State<PlatsScreen> {
     );
   }
 
-  String _getEmoji(String categorie) {
-    switch (categorie.toLowerCase()) {
-      case 'express':
-        return '🍳';
-      case 'plat du jour':
-        return '🍛';
-      case 'entrées':
-        return '🥗';
-      case 'boissons':
-        return '🥤';
-      default:
-        return '🍽️';
-    }
-  }
+  // ── SÉLECTION DU TYPE ────────────────────────────────────────────────────────
 
-  String _getRepasLabel(String repas) {
-    switch (repas) {
-      case 'petit_dejeuner':
-        return '🌅 Petit déj';
-      case 'dejeuner':
-        return '☀️ Déjeuner';
-      case 'diner':
-        return '🌙 Dîner';
-      case 'boisson':
-        return '🥤 Boisson';
-      default:
-        return '';
-    }
-  }
-
-  void _toggleDispo(String id, bool current) {
-    _firestore.collection('plats').doc(id).update({'disponible': !current});
-  }
-
-  void _deletePlat(String id) {
-    showDialog(
+  void _showTypeSelection() {
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Supprimer ce plat ?'),
-        content: const Text('Cette action est irréversible.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDEDED),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            onPressed: () {
-              _firestore.collection('plats').doc(id).delete();
-              Navigator.pop(context);
-            },
-            child: const Text('Supprimer'),
-          ),
-        ],
+            const SizedBox(height: 20),
+            const Text(
+              'Que souhaitez-vous ajouter ?',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Choisissez le type avant de remplir les détails',
+              style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showPlatDialog();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3EE),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: const Color(0xFFFFB89A),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('🍽️', style: TextStyle(fontSize: 42)),
+                          SizedBox(height: 10),
+                          Text(
+                            'Plat',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Express, plat du jour\nentrée...',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 11, color: Color(0xFF8A8A8A)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showBoissonDialog();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: const Color(0xFF93C5FD),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('🥤', style: TextStyle(fontSize: 42)),
+                          SizedBox(height: 10),
+                          Text(
+                            'Boisson',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Café, thé, jus\neau, lait...',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 11, color: Color(0xFF8A8A8A)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showAddDialog() => _showPlatDialog();
-  void _showEditDialog(String id, Map<String, dynamic> data) =>
+  // ── FORMULAIRE BOISSON (simplifié) ───────────────────────────────────────────
+
+  void _showBoissonDialog({String? id, Map<String, dynamic>? data}) {
+    final nomCtrl = TextEditingController(text: data?['nom'] ?? '');
+    final prixCtrl =
+        TextEditingController(text: data?['prix']?.toString() ?? '');
+    final descCtrl =
+        TextEditingController(text: data?['description'] ?? '');
+    String typeBoisson = data?['typeBoisson'] ?? 'cafe';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDEDED),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Text(
+                    _getEmojiBoisson(typeBoisson),
+                    style: const TextStyle(fontSize: 28),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    id == null ? 'Nouvelle boisson' : 'Modifier la boisson',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Type de boisson ──────────────────────────────────────────
+              const Text(
+                'Type de boisson',
+                style:
+                    TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _typeBoissons.map((t) {
+                  final isSelected = typeBoisson == t['value'];
+                  return GestureDetector(
+                    onTap: () =>
+                        setModalState(() => typeBoisson = t['value']!),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFEFF6FF)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF3B82F6)
+                              : const Color(0xFFEDEDED),
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(t['emoji']!,
+                              style: const TextStyle(fontSize: 16)),
+                          const SizedBox(width: 6),
+                          Text(
+                            t['label']!,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? const Color(0xFF1D4ED8)
+                                  : const Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Nom ─────────────────────────────────────────────────────
+              _buildModalField('Nom de la boisson', nomCtrl),
+              const SizedBox(height: 12),
+
+              // ── Description ──────────────────────────────────────────────
+              _buildModalField('Description (optionnel)', descCtrl),
+              const SizedBox(height: 12),
+
+              // ── Prix ─────────────────────────────────────────────────────
+              _buildModalField('Prix (FCFA)', prixCtrl, isNumber: true),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    final boissonData = {
+                      'nom': nomCtrl.text.trim(),
+                      'description': descCtrl.text.trim(),
+                      'prix': double.tryParse(prixCtrl.text) ?? 0,
+                      'categorie': 'boissons',
+                      'typeBoisson': typeBoisson,
+                      'repas': 'boisson',
+                      'tempsPreparation': 0,
+                      'disponible': true,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    };
+                    if (id == null) {
+                      boissonData['createdAt'] =
+                          FieldValue.serverTimestamp();
+                      _firestore.collection('plats').add(boissonData);
+                    } else {
+                      _firestore
+                          .collection('plats')
+                          .doc(id)
+                          .update(boissonData);
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    id == null ? 'Ajouter la boisson' : 'Enregistrer',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── FORMULAIRE PLAT ──────────────────────────────────────────────────────────
+
+  void _showEditDialog(String id, Map<String, dynamic> data) {
+    final isBoisson =
+        (data['categorie'] ?? '').toString().toLowerCase() == 'boissons';
+    if (isBoisson) {
+      _showBoissonDialog(id: id, data: data);
+    } else {
       _showPlatDialog(id: id, data: data);
+    }
+  }
 
   void _showPlatDialog({String? id, Map<String, dynamic>? data}) {
     final nomCtrl = TextEditingController(text: data?['nom'] ?? '');
-    final prixCtrl = TextEditingController(
-      text: data?['prix']?.toString() ?? '',
-    );
-    final descCtrl = TextEditingController(text: data?['description'] ?? '');
+    final prixCtrl =
+        TextEditingController(text: data?['prix']?.toString() ?? '');
+    final descCtrl =
+        TextEditingController(text: data?['description'] ?? '');
     final tempsCtrl = TextEditingController(
-      text: data?['tempsPreparation']?.toString() ?? '',
-    );
+        text: data?['tempsPreparation']?.toString() ?? '');
     String categorie = data?['categorie'] ?? 'express';
     String repas = data?['repas'] ?? 'petit_dejeuner';
 
@@ -618,12 +960,17 @@ class _PlatsScreenState extends State<PlatsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                id == null ? 'Nouveau plat' : 'Modifier le plat',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                children: [
+                  Text(_getEmoji(categorie),
+                      style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 10),
+                  Text(
+                    id == null ? 'Nouveau plat' : 'Modifier le plat',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               _buildModalField('Nom du plat', nomCtrl),
@@ -633,28 +980,19 @@ class _PlatsScreenState extends State<PlatsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildModalField(
-                      'Prix (FCFA)',
-                      prixCtrl,
-                      isNumber: true,
-                    ),
+                    child: _buildModalField('Prix (FCFA)', prixCtrl,
+                        isNumber: true),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildModalField(
-                      'Temps (min)',
-                      tempsCtrl,
-                      isNumber: true,
-                    ),
+                    child: _buildModalField('Temps (min)', tempsCtrl,
+                        isNumber: true),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              // Repas
-              const Text(
-                'Repas',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
+              const Text('Repas',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: repas,
@@ -666,30 +1004,22 @@ class _PlatsScreenState extends State<PlatsScreen> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+                      horizontal: 14, vertical: 12),
                 ),
                 items: const [
                   DropdownMenuItem(
-                    value: 'petit_dejeuner',
-                    child: Text('🌅 Petit déjeuner'),
-                  ),
+                      value: 'petit_dejeuner',
+                      child: Text('🌅 Petit déjeuner')),
                   DropdownMenuItem(
-                    value: 'dejeuner',
-                    child: Text('☀️ Déjeuner'),
-                  ),
-                  DropdownMenuItem(value: 'diner', child: Text('🌙 Dîner')),
-                  DropdownMenuItem(value: 'boisson', child: Text('🥤 Boisson')),
+                      value: 'dejeuner', child: Text('☀️ Déjeuner')),
+                  DropdownMenuItem(
+                      value: 'diner', child: Text('🌙 Dîner')),
                 ],
                 onChanged: (v) => setModalState(() => repas = v!),
               ),
               const SizedBox(height: 12),
-              // Catégorie
-              const Text(
-                'Catégorie',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
+              const Text('Catégorie',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: categorie,
@@ -701,18 +1031,16 @@ class _PlatsScreenState extends State<PlatsScreen> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
+                      horizontal: 14, vertical: 12),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'express', child: Text('Express')),
                   DropdownMenuItem(
-                    value: 'plat du jour',
-                    child: Text('Plat du jour'),
-                  ),
-                  DropdownMenuItem(value: 'entrées', child: Text('Entrées')),
-                  DropdownMenuItem(value: 'boissons', child: Text('Boissons')),
+                      value: 'express', child: Text('🍳 Express')),
+                  DropdownMenuItem(
+                      value: 'plat du jour',
+                      child: Text('🍛 Plat du jour')),
+                  DropdownMenuItem(
+                      value: 'entrées', child: Text('🥗 Entrées')),
                 ],
                 onChanged: (v) => setModalState(() => categorie = v!),
               ),
@@ -725,8 +1053,7 @@ class _PlatsScreenState extends State<PlatsScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
                     final platData = {
@@ -735,24 +1062,27 @@ class _PlatsScreenState extends State<PlatsScreen> {
                       'prix': double.tryParse(prixCtrl.text) ?? 0,
                       'categorie': categorie,
                       'repas': repas,
-                      'tempsPreparation': int.tryParse(tempsCtrl.text) ?? 0,
+                      'tempsPreparation':
+                          int.tryParse(tempsCtrl.text) ?? 0,
                       'disponible': true,
                       'updatedAt': FieldValue.serverTimestamp(),
                     };
                     if (id == null) {
-                      platData['createdAt'] = FieldValue.serverTimestamp();
+                      platData['createdAt'] =
+                          FieldValue.serverTimestamp();
                       _firestore.collection('plats').add(platData);
                     } else {
-                      _firestore.collection('plats').doc(id).update(platData);
+                      _firestore
+                          .collection('plats')
+                          .doc(id)
+                          .update(platData);
                     }
                     Navigator.pop(context);
                   },
                   child: Text(
                     id == null ? 'Ajouter le plat' : 'Enregistrer',
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                        fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -771,14 +1101,14 @@ class _PlatsScreenState extends State<PlatsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          keyboardType:
+              isNumber ? TextInputType.number : TextInputType.text,
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF5F0EB),
@@ -786,13 +1116,99 @@ class _PlatsScreenState extends State<PlatsScreen> {
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],
     );
+  }
+
+  // ── ACTIONS ──────────────────────────────────────────────────────────────────
+
+  void _toggleDispo(String id, bool current) {
+    _firestore.collection('plats').doc(id).update({'disponible': !current});
+  }
+
+  void _deletePlat(String id) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Supprimer ce plat ?'),
+        content: const Text('Cette action est irréversible.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              _firestore.collection('plats').doc(id).delete();
+              Navigator.pop(context);
+            },
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── UTILS ────────────────────────────────────────────────────────────────────
+
+  String _getEmoji(String categorie) {
+    switch (categorie.toLowerCase()) {
+      case 'express':
+        return '🍳';
+      case 'plat du jour':
+        return '🍛';
+      case 'entrées':
+        return '🥗';
+      case 'boissons':
+        return '🥤';
+      default:
+        return '🍽️';
+    }
+  }
+
+  String _getEmojiBoisson(String type) {
+    switch (type) {
+      case 'cafe':
+        return '☕';
+      case 'the':
+        return '🍵';
+      case 'jus':
+        return '🍊';
+      case 'eau':
+        return '💧';
+      case 'lait':
+        return '🥛';
+      default:
+        return '🥤';
+    }
+  }
+
+  String _getLabelBoisson(String type) {
+    final found = _typeBoissons.firstWhere(
+      (t) => t['value'] == type,
+      orElse: () => {'label': 'Boisson'},
+    );
+    return found['label'] ?? 'Boisson';
+  }
+
+  String _getRepasLabel(String repas) {
+    switch (repas) {
+      case 'petit_dejeuner':
+        return '🌅 Petit déj';
+      case 'dejeuner':
+        return '☀️ Déjeuner';
+      case 'diner':
+        return '🌙 Dîner';
+      default:
+        return '';
+    }
   }
 }
