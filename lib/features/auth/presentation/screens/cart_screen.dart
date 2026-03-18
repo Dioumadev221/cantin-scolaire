@@ -25,7 +25,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7F4),
       body: Column(children: [
-        _buildHeader(context, items.length),
+        _buildHeader(context, items),
         Expanded(
           child: items.isEmpty
               ? _buildEmpty(context)
@@ -34,10 +34,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   children: [
                     ...items.map((item) => _ItemCard(
                           item: item,
-                          onIncrement: () =>
-                              cart.setQuantite(item.platId, item.quantite + 1),
-                          onDecrement: () =>
-                              cart.setQuantite(item.platId, item.quantite - 1),
+                          onIncrement: () => cart.setQuantite(
+                              item.platId, item.quantite + 1),
+                          onDecrement: () => cart.setQuantite(
+                              item.platId, item.quantite - 1),
                           onRemove: () => cart.retirer(item.platId),
                         )),
                     const SizedBox(height: 14),
@@ -46,15 +46,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ],
                 ),
         ),
-        if (items.isNotEmpty)
-          _buildCheckoutBar(items, cart),
+        if (items.isNotEmpty) _buildCheckoutBar(items, cart),
       ]),
     );
   }
 
   // ── HEADER ──────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context, int count) {
+  Widget _buildHeader(BuildContext context, List<CartItem> items) {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF1A1A1A),
@@ -68,8 +67,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           onTap: () => Navigator.pop(context),
           child: Container(
             width: 40, height: 40,
-            decoration: BoxDecoration(
-                color: Colors.white12,
+            decoration: BoxDecoration(color: Colors.white12,
                 borderRadius: BorderRadius.circular(12)),
             child: const Icon(Icons.arrow_back_ios_new,
                 color: Colors.white, size: 16),
@@ -80,38 +78,40 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Mon panier', style: TextStyle(
                 color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-            Text('$count article${count > 1 ? 's' : ''}',
+            Text('${items.length} article${items.length > 1 ? 's' : ''}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12)),
           ]),
         ),
-        if (count > 0)
+        if (items.isNotEmpty)
           GestureDetector(
             onTap: () => _confirmVider(),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                  color: Colors.white10,
+              decoration: BoxDecoration(color: Colors.white10,
                   borderRadius: BorderRadius.circular(10)),
               child: const Text('Vider', style: TextStyle(
-                  color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600)),
+                  color: Colors.white60, fontSize: 12,
+                  fontWeight: FontWeight.w600)),
             ),
           ),
       ]),
     );
   }
 
-  // ── EMPTY ───────────────────────────────────────────────────────────────────
+  // ── EMPTY ────────────────────────────────────────────────────────────────────
 
   Widget _buildEmpty(BuildContext context) {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(width: 100, height: 100,
-          decoration: BoxDecoration(
-              color: Colors.white, borderRadius: BorderRadius.circular(28)),
-          child: const Center(child: Text('🛒', style: TextStyle(fontSize: 48)))),
+          decoration: BoxDecoration(color: Colors.white,
+              borderRadius: BorderRadius.circular(28)),
+          child: const Center(
+              child: Text('🛒', style: TextStyle(fontSize: 48)))),
         const SizedBox(height: 20),
         const Text('Panier vide', style: TextStyle(
-            fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+            fontSize: 20, fontWeight: FontWeight.w900,
+            color: Color(0xFF1A1A1A))),
         const SizedBox(height: 8),
         const Text('Ajoutez des plats depuis le menu\npour passer commande',
             textAlign: TextAlign.center,
@@ -121,11 +121,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           onTap: () => Navigator.pop(context),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-            decoration: BoxDecoration(
-                color: const Color(0xFFFF6B35),
+            decoration: BoxDecoration(color: const Color(0xFFFF6B35),
                 borderRadius: BorderRadius.circular(16)),
             child: const Text('Voir le menu', style: TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                color: Colors.white, fontSize: 14,
+                fontWeight: FontWeight.w800)),
           ),
         ),
       ]),
@@ -146,7 +146,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       child: Column(children: [
         const Row(children: [
           Text('Récapitulatif', style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
+              fontSize: 15, fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1A1A))),
         ]),
         const SizedBox(height: 14),
         ...items.map((item) => Padding(
@@ -155,9 +156,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             Text(item.emoji, style: const TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
             Expanded(child: Text(item.nom,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B6B6B)))),
-            Text('×${item.quantite}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFFB0B0B0))),
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFF6B6B6B)))),
+            Text('×${item.quantite}', style: const TextStyle(
+                fontSize: 12, color: Color(0xFFB0B0B0))),
             const SizedBox(width: 12),
             Text('${item.sousTotal.toStringAsFixed(0)} F',
                 style: const TextStyle(
@@ -171,13 +173,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
         Row(children: [
           const Text('Total', style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+              fontSize: 15, fontWeight: FontWeight.w900,
+              color: Color(0xFF1A1A1A))),
           const Spacer(),
           Text('${total.toStringAsFixed(0)} FCFA', style: const TextStyle(
-              fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFFFF6B35))),
+              fontSize: 18, fontWeight: FontWeight.w900,
+              color: Color(0xFFFF6B35))),
         ]),
-        // Solde wallet
         const SizedBox(height: 10),
+        // Indicateur solde
         StreamBuilder<DocumentSnapshot>(
           stream: _db.collection('users').doc(widget.user.uid).snapshots(),
           builder: (_, snap) {
@@ -192,20 +196,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       : const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(10)),
               child: Row(children: [
-                Icon(ok ? Icons.check_circle_outline : Icons.warning_amber_outlined,
-                    size: 16,
-                    color: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(
+                Icon(
                   ok
-                      ? 'Solde suffisant · ${solde.toStringAsFixed(0)} FCFA disponible'
-                      : 'Solde insuffisant · ${solde.toStringAsFixed(0)} FCFA disponible',
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600,
-                      color: ok
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFDC2626)),
-                )),
+                      ? Icons.check_circle_outline
+                      : Icons.warning_amber_outlined,
+                  size: 16,
+                  color: ok
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFDC2626),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ok
+                        ? 'Solde suffisant · ${solde.toStringAsFixed(0)} FCFA disponible'
+                        : 'Solde insuffisant · ${solde.toStringAsFixed(0)} FCFA disponible',
+                    style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600,
+                        color: ok
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626)),
+                  ),
+                ),
               ]),
             );
           },
@@ -214,7 +226,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── BARRE DE COMMANDE ────────────────────────────────────────────────────────
+  // ── BARRE COMMANDE ────────────────────────────────────────────────────────────
 
   Widget _buildCheckoutBar(List<CartItem> items, CartNotifier cart) {
     final total = cart.total;
@@ -222,7 +234,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 20, offset: const Offset(0, -6))],
       ),
       child: GestureDetector(
@@ -246,16 +259,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   color: Colors.white, size: 20),
               const SizedBox(width: 10),
               const Text('Passer la commande', style: TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                  color: Colors.white, fontSize: 15,
+                  fontWeight: FontWeight.w800)),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                     color: Colors.white24,
                     borderRadius: BorderRadius.circular(20)),
                 child: Text('${total.toStringAsFixed(0)} F',
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+                        color: Colors.white, fontSize: 12,
+                        fontWeight: FontWeight.w800)),
               ),
             ],
           ]),
@@ -264,77 +280,93 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── PASSER LA COMMANDE ────────────────────────────────────────────────────────
+  // ── PASSER LA COMMANDE (UNE SEULE commande groupée) ──────────────────────────
 
   Future<void> _passerCommande(List<CartItem> items, double total) async {
     setState(() => _loading = true);
 
     try {
       // Vérifier le solde
-      final userDoc = await _db.collection('users').doc(widget.user.uid).get();
+      final userDoc =
+          await _db.collection('users').doc(widget.user.uid).get();
       final solde =
           (userDoc.data()?['soldeWallet'] ?? 0).toDouble();
 
       if (solde < total) {
         if (mounted) {
           setState(() => _loading = false);
-          _snack('Solde insuffisant (${solde.toStringAsFixed(0)} FCFA disponible)',
+          _snack(
+              'Solde insuffisant (${solde.toStringAsFixed(0)} FCFA disponible)',
               error: true);
         }
         return;
       }
 
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final batch = _db.batch();
-      final List<String> numeros = [];
+      // Numéro unique pour la commande groupée
+      final numero =
+          'CMD${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
-      // Créer une commande par article
-      for (final item in items) {
-        final numero =
-            'CMD${(timestamp + items.indexOf(item)).toString().substring(7)}';
-        numeros.add(numero);
+      // Statut global : si au moins un plat (non boisson), statut = recue
+      // Si tout est boisson, statut = prete
+      final toutBoisson = items.every((i) => i.isBoisson);
 
-        final ref = _db.collection('commandes').doc();
-        batch.set(ref, {
-          'numero': numero,
-          'etudiantId': widget.user.uid,
-          'etudiantNom': '${widget.user.prenom} ${widget.user.nom}',
-          'platsIds': [item.platId],
-          'nomPlat': item.nom,
-          'quantite': item.quantite,
-          'montantTotal': item.sousTotal,
-          'modePaiement': 'wallet',
-          'statut': item.isBoisson ? 'prete' : 'recue',
-          'isBoisson': item.isBoisson,
-          'notifEnvoyee': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+      // Construire la liste détaillée des articles
+      final platsDetails = items
+          .map((i) => {
+                'platId': i.platId,
+                'nom': i.nom,
+                'emoji': i.emoji,
+                'prix': i.prix,
+                'quantite': i.quantite,
+                'sousTotal': i.sousTotal,
+                'isBoisson': i.isBoisson,
+              })
+          .toList();
+
+      // Résumé lisible : "Riz + Thiebou + Jus"
+      final resumePlats = items.length == 1
+          ? items.first.nom
+          : items.map((i) => i.nom).join(' + ');
+
+      // Créer la commande unique
+      final commandeRef = await _db.collection('commandes').add({
+        'numero': numero,
+        'etudiantId': widget.user.uid,
+        'etudiantNom': '${widget.user.prenom} ${widget.user.nom}',
+        // Compatibilité ancienne structure
+        'platsIds': items.map((i) => i.platId).toList(),
+        'nomPlat': resumePlats,
+        // Nouveau champ : liste complète des articles
+        'platsDetails': platsDetails,
+        'nbArticles': items.fold<int>(0, (s, i) => s + i.quantite),
+        'montantTotal': total,
+        'modePaiement': 'wallet',
+        'statut': toutBoisson ? 'prete' : 'recue',
+        'isBoisson': toutBoisson,
+        'notifEnvoyee': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       // Débiter le wallet
-      final userRef = _db.collection('users').doc(widget.user.uid);
-      batch.update(userRef, {'soldeWallet': FieldValue.increment(-total)});
+      await _db.collection('users').doc(widget.user.uid).update({
+        'soldeWallet': FieldValue.increment(-total),
+      });
 
-      await batch.commit();
-
-      // Notifier les gérants pour chaque plat
-      for (int i = 0; i < items.length; i++) {
-        await NotificationService.notifierNouvelleCommande(
-          commandeId: '',
-          commandeNumero: numeros[i],
-          etudiantNom: '${widget.user.prenom} ${widget.user.nom}',
-          nomPlat: items[i].nom,
-        );
-      }
+      // Notifier les gérants (une seule notification groupée)
+      await NotificationService.notifierNouvelleCommande(
+        commandeId: commandeRef.id,
+        commandeNumero: numero,
+        etudiantNom: '${widget.user.prenom} ${widget.user.nom}',
+        nomPlat: resumePlats,
+      );
 
       // Vider le panier
       ref.read(cartProvider.notifier).vider();
 
       if (mounted) {
         Navigator.pop(context);
-        _snack('${items.length} commande${items.length > 1 ? 's' : ''} '
-            'passée${items.length > 1 ? 's' : ''} avec succès 🎉');
+        _snack('Commande #$numero passée avec succès 🎉');
       }
     } catch (e) {
       if (mounted) {
@@ -350,7 +382,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Text('Vider le panier ?',
             style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text('Tous les articles seront retirés.'),
@@ -382,8 +415,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           error ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
       behavior: SnackBarBehavior.floating,
       margin: const EdgeInsets.all(16),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14)),
     ));
   }
 }
@@ -417,7 +450,8 @@ class _ItemCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18)),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+        child:
+            const Icon(Icons.delete_outline, color: Colors.white, size: 24),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -429,17 +463,15 @@ class _ItemCard extends StatelessWidget {
                 color: Colors.black.withOpacity(0.04),
                 blurRadius: 12, offset: const Offset(0, 4))]),
         child: Row(children: [
-          // Emoji
           Container(
             width: 58, height: 58,
             decoration: BoxDecoration(
                 color: const Color(0xFFF8F7F4),
                 borderRadius: BorderRadius.circular(14)),
-            child: Center(
-                child: Text(item.emoji, style: const TextStyle(fontSize: 28))),
+            child: Center(child: Text(item.emoji,
+                style: const TextStyle(fontSize: 28))),
           ),
           const SizedBox(width: 12),
-          // Infos
           Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(item.nom, style: const TextStyle(
@@ -451,7 +483,6 @@ class _ItemCard extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 11, color: Color(0xFFB0B0B0))),
             const SizedBox(height: 8),
-            // Quantité
             Row(children: [
               _qBtn(Icons.remove, onDecrement,
                   item.quantite > 1
@@ -461,12 +492,11 @@ class _ItemCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text('${item.quantite}', style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A1A))),
-              ),
-              _qBtn(Icons.add, onIncrement, const Color(0xFFFF6B35)),
+                    color: Color(0xFF1A1A1A)))),
+              _qBtn(Icons.add, onIncrement,
+                  const Color(0xFFFF6B35)),
             ]),
           ])),
-          // Sous-total
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('${item.sousTotal.toStringAsFixed(0)}',
                 style: const TextStyle(
