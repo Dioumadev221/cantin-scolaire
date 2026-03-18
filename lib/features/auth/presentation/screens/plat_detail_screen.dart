@@ -1,9 +1,10 @@
-import 'package:cantine_scolaire/features/auth/presentation/services/notification_service.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/domain/entities/user_entity.dart';
+import '../../presentation/providers/cart_provider.dart';
+import 'cart_screen.dart';
 
-class PlatDetailScreen extends StatefulWidget {
+class PlatDetailScreen extends ConsumerStatefulWidget {
   final String platId;
   final Map<String, dynamic> data;
   final UserEntity user;
@@ -16,49 +17,74 @@ class PlatDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<PlatDetailScreen> createState() => _PlatDetailScreenState();
+  ConsumerState<PlatDetailScreen> createState() => _PlatDetailScreenState();
 }
 
-class _PlatDetailScreenState extends State<PlatDetailScreen> {
+class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
   int _qty = 1;
-  bool _isLoading = false;
-  final _firestore = FirebaseFirestore.instance;
 
-  Map<String, dynamic> get _data => widget.data;
+  Map<String, dynamic> get d => widget.data;
   bool get _isBoisson =>
-      (_data['categorie'] ?? '').toString().toLowerCase() == 'boissons';
+      (d['categorie'] ?? '').toString().toLowerCase() == 'boissons';
+  double get _prix => (d['prix'] ?? 0).toDouble();
+  double get _total => _prix * _qty;
 
   String get _emoji {
     if (_isBoisson) {
-      switch (_data['typeBoisson'] ?? '') {
-        case 'cafe': return '☕';
-        case 'the': return '🍵';
-        case 'jus': return '🍊';
-        case 'eau': return '💧';
-        case 'lait': return '🥛';
-        default: return '🥤';
+      switch (d['typeBoisson'] ?? '') {
+        case 'cafe':
+          return '☕';
+        case 'the':
+          return '🍵';
+        case 'jus':
+          return '🍊';
+        case 'eau':
+          return '💧';
+        case 'lait':
+          return '🥛';
+        default:
+          return '🥤';
       }
     }
-    switch ((_data['categorie'] ?? '').toLowerCase()) {
-      case 'express': return '🍳';
-      case 'plat du jour': return '🍛';
-      case 'entrées': return '🥗';
-      default: return '🍽️';
+    switch ((d['categorie'] ?? '').toString().toLowerCase()) {
+      case 'express':
+        return '🍳';
+      case 'plat du jour':
+        return '🍛';
+      case 'entrées':
+        return '🥗';
+      default:
+        return '🍽️';
     }
   }
 
-  double get _prix => (_data['prix'] ?? 0).toDouble();
-  double get _total => _prix * _qty;
+  Color get _color {
+    switch ((d['categorie'] ?? '').toString().toLowerCase()) {
+      case 'express':
+        return const Color(0xFFFF6B35);
+      case 'plat du jour':
+        return const Color(0xFF10B981);
+      case 'entrées':
+        return const Color(0xFF3B82F6);
+      case 'boissons':
+        return const Color(0xFF8B5CF6);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final cartItems = ref.watch(cartProvider);
+    final alreadyInCart = cartItems.any((e) => e.platId == widget.platId);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F0EB),
+      backgroundColor: const Color(0xFFF8F7F4),
       body: Column(
         children: [
-          _buildHero(),
-          Expanded(child: _buildContent()),
-          _buildBottomBar(),
+          _buildHero(cartItems.length),
+          Expanded(child: _buildBody()),
+          _buildBottomBar(alreadyInCart),
         ],
       ),
     );
@@ -66,330 +92,359 @@ class _PlatDetailScreenState extends State<PlatDetailScreen> {
 
   // ── HERO ───────────────────────────────────────────────────────────────────
 
-  Widget _buildHero() {
+  Widget _buildHero(int cartCount) {
     return Container(
-      height: 280,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Orange blob
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFFF6B35).withOpacity(0.4),
-                    const Color(0xFFFF6B35).withOpacity(0),
-                  ],
+      color: Colors.white,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F7F4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: Color(0xFF1A1A1A),
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      d['nom'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Bouton panier avec badge
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CartScreen(user: widget.user),
+                      ),
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F7F4),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.shopping_bag_outlined,
+                            color: Color(0xFF1A1A1A),
+                            size: 20,
+                          ),
+                        ),
+                        if (cartCount > 0)
+                          Positioned(
+                            top: -4,
+                            right: -4,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF6B35),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$cartCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: _color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(36),
+                  ),
+                  child: Center(
+                    child: Text(_emoji, style: const TextStyle(fontSize: 64)),
+                  ),
                 ),
               ),
             ),
-          ),
-          // Back button
-          Positioned(
-            top: 52,
-            left: 20,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white12,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.arrow_back,
-                    color: Colors.white, size: 20),
-              ),
-            ),
-          ),
-          // Favorite button
-          Positioned(
-            top: 52,
-            right: 20,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white12,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.favorite_border,
-                  color: Colors.white, size: 20),
-            ),
-          ),
-          // Food emoji
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Text(_emoji, style: const TextStyle(fontSize: 110)),
-            ),
-          ),
-          // Name overlay
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Text(
-              _data['nom'] ?? '',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ── CONTENT ─────────────────────────────────────────────────────────────────
+  // ── BODY ─────────────────────────────────────────────────────────────────────
 
-  Widget _buildContent() {
-    final temps = _data['tempsPreparation'] ?? 0;
+  Widget _buildBody() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quantité + Stats
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  d['nom'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: _color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _isBoisson ? 'Boisson' : (d['categorie'] ?? ''),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Stats
           Row(
             children: [
-              // Quantity selector
-              _buildQtySelector(),
-              const Spacer(),
-              // Mini stats
+              _stat('💰', '${d['prix'] ?? 0} F', 'Prix'),
+              _statDiv(),
               if (!_isBoisson) ...[
-                _buildStat('⏱️', '${temps}min', 'Temps'),
-                const SizedBox(width: 14),
+                _stat('⏱️', '${d['tempsPreparation'] ?? 0} min', 'Prépa'),
+                _statDiv(),
               ],
-              _buildStat('⭐', '4.9', 'Note'),
-              const SizedBox(width: 14),
-              _buildStat('🏷️',
-                  _isBoisson
-                      ? (_data['typeBoisson'] ?? '—')
-                      : (_data['categorie'] ?? '—'),
-                  'Type'),
+              _stat('⭐', '4.9', 'Note'),
+              _statDiv(),
+              _stat(
+                '✅',
+                d['disponible'] == true ? 'Dispo' : 'Indispo',
+                'Statut',
+              ),
             ],
           ),
           const SizedBox(height: 20),
-          // Description
-          const Text('Description',
+          if ((d['description'] as String?)?.isNotEmpty == true) ...[
+            const Text(
+              'Description',
               style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A))),
-          const SizedBox(height: 8),
-          Text(
-            (_data['description'] as String?)?.isNotEmpty == true
-                ? _data['description']
-                : 'Un délice préparé avec soin par nos cuisiniers. '
-                    'Savoureux, équilibré et plein de saveurs.',
-            style: const TextStyle(
-                color: Color(0xFF6B7280),
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              d['description'] ?? '',
+              style: const TextStyle(
+                color: Color(0xFF8A8A8A),
                 fontSize: 13,
-                height: 1.6),
-          ),
-          const SizedBox(height: 20),
-          // Infos box
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: const Color(0xFFEDEDED), width: 0.5),
+                height: 1.6,
+              ),
             ),
-            child: Row(
-              children: [
-                _buildInfoItem(
-                    '💰',
-                    '${_data['prix'] ?? 0} F',
-                    'Prix unitaire'),
-                _buildInfoDivider(),
-                _buildInfoItem(
-                    _isBoisson ? '🥤' : '🍽️',
-                    _isBoisson ? 'Boisson' : 'Plat',
-                    'Catégorie'),
-                _buildInfoDivider(),
-                _buildInfoItem(
-                    '✅',
-                    (_data['disponible'] == true)
-                        ? 'Dispo'
-                        : 'Indispo',
-                    'Statut'),
-              ],
-            ),
+            const SizedBox(height: 20),
+          ],
+          // Sélecteur quantité
+          Row(
+            children: [
+              const Text(
+                'Quantité',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const Spacer(),
+              _qBtn(
+                Icons.remove,
+                _qty > 1 ? () => setState(() => _qty--) : null,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '$_qty',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+              _qBtn(Icons.add, () => setState(() => _qty++)),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQtySelector() {
-    return Row(
+  Widget _stat(String emoji, String val, String label) => Expanded(
+    child: Column(
       children: [
-        GestureDetector(
-          onTap: _qty > 1 ? () => setState(() => _qty--) : null,
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: _qty > 1
-                  ? const Color(0xFFFF6B35)
-                  : const Color(0xFFEDEDED),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.remove,
-                color: _qty > 1 ? Colors.white : const Color(0xFFCCCCCC),
-                size: 18),
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(
+          val,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1A1A1A),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text('$_qty',
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800)),
-        ),
-        GestureDetector(
-          onTap: () => setState(() => _qty++),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6B35),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child:
-                const Icon(Icons.add, color: Colors.white, size: 18),
-          ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: Color(0xFFB0B0B0)),
         ),
       ],
-    );
-  }
+    ),
+  );
 
-  Widget _buildStat(String emoji, String value, String label) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A))),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 9, color: Color(0xFF8A8A8A))),
-      ],
-    );
-  }
+  Widget _statDiv() => Container(
+    width: 1,
+    height: 40,
+    color: const Color(0xFFEEEEEE),
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+  );
 
-  Widget _buildInfoItem(String emoji, String value, String label) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700),
-              overflow: TextOverflow.ellipsis),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: Color(0xFF8A8A8A))),
-        ],
+  Widget _qBtn(IconData icon, VoidCallback? onTap) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: onTap != null
+            ? const Color(0xFFFF6B35)
+            : const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-
-  Widget _buildInfoDivider() => Container(
-        width: 0.5, height: 48, color: const Color(0xFFEDEDED));
+      child: Icon(
+        icon,
+        color: onTap != null ? Colors.white : const Color(0xFFCCCCCC),
+        size: 18,
+      ),
+    ),
+  );
 
   // ── BOTTOM BAR ─────────────────────────────────────────────────────────────
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(bool alreadyInCart) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-            top: BorderSide(color: Color(0xFFEDEDED), width: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: Row(
         children: [
+          // Total
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Total',
-                  style: TextStyle(
-                      color: Color(0xFF8A8A8A), fontSize: 11)),
-              Text('${_total.toStringAsFixed(0)} FCFA',
-                  style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  )),
+              const Text(
+                'Sous-total',
+                style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 11),
+              ),
+              Text(
+                '${_total.toStringAsFixed(0)} FCFA',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
             ],
           ),
           const SizedBox(width: 16),
+          // Bouton ajouter au panier
           Expanded(
             child: GestureDetector(
-              onTap: _isLoading ? null : _commander,
+              onTap: () => _ajouterAuPanier(alreadyInCart),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                height: 52,
+                height: 54,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6B35), Color(0xFFFF8C5A)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6B35).withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  color: alreadyInCart
+                      ? const Color(0xFF1A1A1A)
+                      : const Color(0xFFFF6B35),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Center(
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart_outlined,
-                                color: Colors.white, size: 18),
-                            SizedBox(width: 8),
-                            Text('Ajouter au panier',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700)),
-                          ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        alreadyInCart
+                            ? Icons.shopping_bag
+                            : Icons.add_shopping_cart,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        alreadyInCart ? 'Voir le panier' : 'Ajouter au panier',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
                         ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -399,81 +454,70 @@ class _PlatDetailScreenState extends State<PlatDetailScreen> {
     );
   }
 
-  // ── COMMANDER ──────────────────────────────────────────────────────────────
+  // ── AJOUTER AU PANIER ───────────────────────────────────────────────────────
 
-  Future<void> _commander() async {
-    setState(() => _isLoading = true);
-
-    try {
-      // Vérification du solde
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(widget.user.uid)
-          .get();
-      final solde = (userDoc.data()?['soldeWallet'] ?? 0).toDouble();
-      if (solde < _total) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          _showSnack('Solde insuffisant (${solde.toStringAsFixed(0)} FCFA disponible)',
-              isError: true);
-        }
-        return;
-      }
-
-      // Numéro commande
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final numero = 'CMD${timestamp.toString().substring(7)}';
-
-      // Créer la commande
-      final commandeRef = await _firestore.collection('commandes').add({
-        'numero': numero,
-        'etudiantId': widget.user.uid,
-        'etudiantNom': '${widget.user.prenom} ${widget.user.nom}',
-        'platsIds': [widget.platId],
-        'nomPlat': _data['nom'] ?? '',
-        'quantite': _qty,
-        'montantTotal': _total,
-        'modePaiement': 'wallet',
-        'statut': _isBoisson ? 'prete' : 'recue',
-        'isBoisson': _isBoisson,
-        'notifEnvoyee': false,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Débiter le wallet
-      await _firestore.collection('users').doc(widget.user.uid).update({
-        'soldeWallet': FieldValue.increment(-_total),
-      });
-
-      // Notification au gérant
-      await NotificationService.notifyNouvelleCommande(
-        commandeId: commandeRef.id,
-        commandeNumero: numero,
-        etudiantNom: '${widget.user.prenom} ${widget.user.nom}',
-        nomPlat: _data['nom'] ?? '',
+  void _ajouterAuPanier(bool alreadyInCart) {
+    if (alreadyInCart) {
+      // Naviguer directement vers le panier
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => CartScreen(user: widget.user)),
       );
-
-      if (mounted) {
-        Navigator.pop(context);
-        _showSnack('✅ Commande #$numero passée avec succès !');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showSnack('Erreur lors de la commande', isError: true);
-      }
+      return;
     }
-  }
 
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor:
-          isError ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    ));
+    ref
+        .read(cartProvider.notifier)
+        .ajouter(
+          CartItem(
+            platId: widget.platId,
+            nom: d['nom'] ?? '',
+            prix: _prix,
+            emoji: _emoji,
+            categorie: d['categorie'] ?? '',
+            isBoisson: _isBoisson,
+            quantite: _qty,
+          ),
+        );
+
+    // Feedback visuel
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Text('🛒', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${d['nom']} ajouté au panier',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CartScreen(user: widget.user),
+                  ),
+                );
+              },
+              child: const Text(
+                'Voir',
+                style: TextStyle(
+                  color: Color(0xFFFF6B35),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
   }
 }
