@@ -23,6 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   String _search = '';
   String _cat = 'Tous';
   int _tab = 0;
+  String _mode = 'menu'; // 'menu' | 'boissons'
   late final AnimationController _fadeCtrl;
 
   static const _categories = [
@@ -359,9 +360,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         SliverToBoxAdapter(child: _buildGreeting()),
         SliverToBoxAdapter(child: _buildWallet()),
         SliverToBoxAdapter(child: _buildSearchBar()),
+        SliverToBoxAdapter(child: _buildModeToggle()),
         _buildPlatsList(),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
+    );
+  }
+
+  // ── TOGGLE MENU / BOISSONS ─────────────────────────────────────────────────
+
+  Widget _buildModeToggle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(children: [
+        Expanded(child: _modeBtn('menu',    '🍽️', 'Menu')),
+        const SizedBox(width: 12),
+        Expanded(child: _modeBtn('boissons','🥤', 'Boissons')),
+      ]),
+    );
+  }
+
+  Widget _modeBtn(String mode, String emoji, String label) {
+    final active = _mode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _mode = mode),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: active ? [BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 8, offset: const Offset(0, 4))] : [],
+          border: Border.all(
+              color: active ? const Color(0xFF1A1A1A) : const Color(0xFFEEEEEE),
+              width: 1.5),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w700,
+              color: active ? Colors.white : const Color(0xFF6B6B6B))),
+        ]),
+      ),
     );
   }
 
@@ -617,13 +660,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // ── LISTE PLATS par catégorie (menu actif du jour) ─────────────────────────
+  // ── LISTE PLATS avec mode Menu/Boissons + Voir plus ────────────────────────
 
   Widget _buildPlatsList() {
     final today = DateTime.now();
     final dateStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
+    if (_mode == 'boissons') {
+      // ── MODE BOISSONS : direct depuis /plats, pas besoin de menu ────────────
+      return StreamBuilder<QuerySnapshot>(
+        stream: _db.collection('plats')
+            .where('disponible', isEqualTo: true)
+            .where('categorie', isEqualTo: 'boissons')
+            .snapshots(),
+        builder: (_, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const SliverToBoxAdapter(child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator(
+                  color: Color(0xFFFF6B35), strokeWidth: 2))));
+          }
+          var docs = snap.data?.docs ?? [];
+          if (_search.isNotEmpty) {
+            docs = docs.where((d) {
+              final m = d.data() as Map;
+              return (m['nom'] ?? '').toString().toLowerCase().contains(_search);
+            }).toList();
+          }
+          if (docs.isEmpty) {
+            return SliverToBoxAdapter(child: _emptyBox('🥤', 'Aucune boisson disponible'));
+          }
+          return _buildCategorySection('🥤', 'Boissons', docs, isBoissons: true);
+        },
+      );
+    }
+
+    // ── MODE MENU : filtré par le menu actif du jour ────────────────────────
     return StreamBuilder<QuerySnapshot>(
       stream: _db
           .collection('menus')
@@ -635,192 +708,117 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           return const SliverToBoxAdapter(child: Padding(
             padding: EdgeInsets.all(40),
             child: Center(child: CircularProgressIndicator(
-                color: Color(0xFFFF6B35), strokeWidth: 2)),
-          ));
+                color: Color(0xFFFF6B35), strokeWidth: 2))));
         }
 
-        // Pas de menu actif
         if ((menuSnap.data?.docs ?? []).isEmpty) {
-          return SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-              decoration: BoxDecoration(color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
-                      blurRadius: 12, offset: const Offset(0, 4))]),
-              child: const Column(children: [
-                Text('📋', style: TextStyle(fontSize: 48)),
-                SizedBox(height: 12),
-                Text('Aucun menu publié aujourd\'hui',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1A1A))),
-                SizedBox(height: 6),
-                Text('L\'administration n\'a pas encore publié\nle menu de la journée.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 13)),
-              ]),
-            ),
-          ));
+          return SliverToBoxAdapter(child: _emptyBox('📋',
+              'Aucun menu publié aujourd\'hui',
+              sub: 'L\'administration n\'a pas encore publié\nle menu de la journée.'));
         }
 
         final menuData = menuSnap.data!.docs.first.data() as Map<String, dynamic>;
-        final allPlatIds = <String>{
-          ...((menuData['petitDej'] as List?)?.cast<String>() ?? []),
-          ...((menuData['dejeuner'] as List?)?.cast<String>() ?? []),
-          ...((menuData['diner'] as List?)?.cast<String>() ?? []),
-        };
+        final petitDejIds = (menuData['petitDej'] as List?)?.cast<String>() ?? [];
+        final dejeunerIds = (menuData['dejeuner'] as List?)?.cast<String>() ?? [];
+        final dinerIds = (menuData['diner'] as List?)?.cast<String>() ?? [];
+        final allIds = {...petitDejIds, ...dejeunerIds, ...dinerIds};
 
-        if (allPlatIds.isEmpty) {
-          return SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-              decoration: BoxDecoration(color: Colors.white,
-                  borderRadius: BorderRadius.circular(20)),
-              child: const Column(children: [
-                Text('🍽️', style: TextStyle(fontSize: 48)),
-                SizedBox(height: 12),
-                Text('Menu vide', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                SizedBox(height: 6),
-                Text('Aucun plat n\'a encore été ajouté au menu.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 13)),
-              ]),
-            ),
-          ));
+        if (allIds.isEmpty) {
+          return SliverToBoxAdapter(child: _emptyBox('🍽️', 'Menu vide',
+              sub: 'Aucun plat n\'a encore été ajouté au menu.'));
         }
 
         return StreamBuilder<QuerySnapshot>(
-          stream: _db.collection('plats').where('disponible', isEqualTo: true).snapshots(),
+          stream: _db.collection('plats')
+              .where('disponible', isEqualTo: true)
+              .snapshots(),
           builder: (_, platsSnap) {
             if (platsSnap.connectionState == ConnectionState.waiting) {
               return const SliverToBoxAdapter(child: SizedBox.shrink());
             }
 
-            // Plats du menu actif + disponibles
-            var docs = (platsSnap.data?.docs ?? [])
-                .where((d) => allPlatIds.contains(d.id))
+            final allDocs = (platsSnap.data?.docs ?? [])
+                .where((d) => allIds.contains(d.id))
                 .toList();
 
-            // Filtre recherche
+            // Appliquer filtre recherche
+            var filtered = allDocs;
             if (_search.isNotEmpty) {
-              docs = docs.where((d) {
+              filtered = allDocs.where((d) {
                 final m = d.data() as Map;
                 return (m['nom'] ?? '').toString().toLowerCase().contains(_search) ||
                     (m['description'] ?? '').toString().toLowerCase().contains(_search);
               }).toList();
             }
 
-            if (docs.isEmpty) {
-              return SliverToBoxAdapter(child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Column(children: [
-                  const Text('🔍', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  Text(
-                    _search.isNotEmpty
-                        ? 'Aucun résultat pour "$_search"'
-                        : 'Aucun plat au menu',
-                    style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 13),
-                    textAlign: TextAlign.center,
-                  ),
-                ]),
-              ));
+            if (filtered.isEmpty) {
+              return SliverToBoxAdapter(child: _emptyBox('🔍',
+                  'Aucun résultat pour "$_search"'));
             }
 
-            // ── Grouper par catégorie ──────────────────────────────────────
-            const catOrder = ['petit_dejeuner', 'dejeuner', 'diner', 'boissons'];
-            const catLabels = {
-              'petit_dejeuner': {'label': 'Petit déjeuner', 'emoji': '🌅'},
-              'dejeuner':       {'label': 'Déjeuner',       'emoji': '☀️'},
-              'diner':          {'label': 'Dîner',          'emoji': '🌙'},
-              'boissons':   {'label': 'Boissons',      'emoji': '🥤'},
-            };
-
-            final grouped = <String, List<QueryDocumentSnapshot>>{};
-            for (final doc in docs) {
-              final cat = (doc.data() as Map)['categorie']
-                  ?.toString().toLowerCase() ?? 'autres';
-              grouped.putIfAbsent(cat, () => []).add(doc);
-            }
-
-            // Construire les sliver widgets
-            final widgets = <Widget>[];
-            for (final cat in catOrder) {
-              final catDocs = grouped[cat];
-              if (catDocs == null || catDocs.isEmpty) continue;
-              final info = catLabels[cat] ?? {'label': cat, 'emoji': '🍽️'};
-
-              // En-tête catégorie
-              widgets.add(Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Row(children: [
-                  Text(info['emoji']!, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
-                  Text(info['label']!, style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A))),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFFF6B35).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Text('${catDocs.length}',
-                        style: const TextStyle(
-                            color: Color(0xFFFF6B35), fontSize: 11,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                ]),
-              ));
-
-              // Cards de la catégorie
-              for (final doc in catDocs) {
-                widgets.add(Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _PlatCard(
-                    platId: doc.id,
-                    data: doc.data() as Map<String, dynamic>,
-                    user: widget.user,
-                  ),
-                ));
-              }
-            }
-
-            // Catégories inconnues
-            final others = grouped.entries
-                .where((e) => !catOrder.contains(e.key))
-                .toList();
-            if (others.isNotEmpty) {
-              widgets.add(const Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text('🍽️ Autres', style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w800)),
-              ));
-              for (final entry in others) {
-                for (final doc in entry.value) {
-                  widgets.add(Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _PlatCard(
-                      platId: doc.id,
-                      data: doc.data() as Map<String, dynamic>,
-                      user: widget.user,
-                    ),
-                  ));
-                }
-              }
-            }
+            // Séparer par slot
+            final petitDejDocs = filtered.where((d) => petitDejIds.contains(d.id)).toList();
+            final dejeunerDocs = filtered.where((d) => dejeunerIds.contains(d.id)).toList();
+            final dinerDocs    = filtered.where((d) => dinerIds.contains(d.id)).toList();
 
             return SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => widgets[i],
-                childCount: widgets.length,
-              ),
+              delegate: SliverChildListDelegate([
+                if (petitDejDocs.isNotEmpty)
+                  _SectionWithVoirPlus(
+                    emoji: '🌅', titre: 'Petit déjeuner',
+                    docs: petitDejDocs, user: widget.user, db: _db),
+                if (dejeunerDocs.isNotEmpty)
+                  _SectionWithVoirPlus(
+                    emoji: '☀️', titre: 'Déjeuner',
+                    docs: dejeunerDocs, user: widget.user, db: _db),
+                if (dinerDocs.isNotEmpty)
+                  _SectionWithVoirPlus(
+                    emoji: '🌙', titre: 'Dîner',
+                    docs: dinerDocs, user: widget.user, db: _db),
+              ]),
             );
           },
         );
       },
+    );
+  }
+
+  // ── Boissons section ───────────────────────────────────────────────────────
+
+  Widget _buildCategorySection(String emoji, String titre,
+      List<QueryDocumentSnapshot> docs, {bool isBoissons = false}) {
+    return SliverList(
+      delegate: SliverChildListDelegate([
+        _SectionWithVoirPlus(
+          emoji: emoji, titre: titre,
+          docs: docs, user: widget.user, db: _db),
+      ]),
+    );
+  }
+
+  Widget _emptyBox(String icon, String title, {String? sub}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+              blurRadius: 12, offset: const Offset(0, 4))]),
+        child: Column(children: [
+          Text(icon, style: const TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1A1A))),
+          if (sub != null) ...[
+            const SizedBox(height: 6),
+            Text(sub, textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 13)),
+          ],
+        ]),
+      ),
     );
   }
 
@@ -915,6 +913,115 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           },
         );
       },
+    );
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION AVEC "VOIR PLUS" / "VOIR MOINS"
+// ─────────────────────────────────────────────────────────────────────────────
+class _SectionWithVoirPlus extends StatefulWidget {
+  final String emoji;
+  final String titre;
+  final List<QueryDocumentSnapshot> docs;
+  final UserEntity user;
+  final FirebaseFirestore db;
+
+  const _SectionWithVoirPlus({
+    required this.emoji,
+    required this.titre,
+    required this.docs,
+    required this.user,
+    required this.db,
+  });
+
+  @override
+  State<_SectionWithVoirPlus> createState() => _SectionWithVoirPlusState();
+}
+
+class _SectionWithVoirPlusState extends State<_SectionWithVoirPlus> {
+  static const _initialLimit = 3;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.docs.length;
+    final displayed = _expanded ? total : total.clamp(0, _initialLimit);
+    final hasMore = total > _initialLimit;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── En-tête section ───────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          child: Row(children: [
+            Text(widget.emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(widget.titre, style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A))),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B35).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Text('$total plat${total > 1 ? 's' : ''}',
+                  style: const TextStyle(
+                      color: Color(0xFFFF6B35), fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ),
+
+        // ── Cards ─────────────────────────────────────────────────────────
+        ...List.generate(displayed, (i) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _PlatCard(
+            platId: widget.docs[i].id,
+            data: widget.docs[i].data() as Map<String, dynamic>,
+            user: widget.user,
+          ),
+        )),
+
+        // ── Bouton Voir plus / Voir moins ─────────────────────────────────
+        if (hasMore)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+            child: GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: const Color(0xFFFF6B35).withOpacity(0.4),
+                      width: 1.5),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(
+                    _expanded
+                        ? 'Voir moins'
+                        : 'Voir plus · ${total - _initialLimit} plat${total - _initialLimit > 1 ? 's' : ''} de plus',
+                    style: const TextStyle(
+                        color: Color(0xFFFF6B35),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: const Color(0xFFFF6B35), size: 18),
+                ]),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

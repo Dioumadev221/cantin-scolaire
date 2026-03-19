@@ -35,8 +35,7 @@ class AuthRemoteDatasource {
       }
 
       return UserModel.fromFirestore(doc);
-    } on FirebaseAuthException catch (e) {
-      // On re-lance l'exception pour qu'elle remonte jusqu'à AuthNotifier
+    } on FirebaseAuthException {
       rethrow;
     } catch (e) {
       throw Exception('Erreur Firestore : $e');

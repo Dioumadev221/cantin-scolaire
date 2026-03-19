@@ -1,11 +1,11 @@
-import 'package:cantine_scolaire/features/auth/domain/entities/user_entity.dart';
 import 'package:cantine_scolaire/features/auth/presentation/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsEtudiantScreen extends StatelessWidget {
   final UserEntity user;
-  const NotificationsScreen({super.key, required this.user});
+  const NotificationsEtudiantScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +14,61 @@ class NotificationsScreen extends StatelessWidget {
       body: Column(
         children: [
           _buildHeader(context),
-          Expanded(child: _buildList()),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: NotificationService.streamToutes(user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFFF6B35)),
+                  );
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('🔔', style: TextStyle(fontSize: 56)),
+                        SizedBox(height: 12),
+                        Text('Aucune notification',
+                            style: TextStyle(
+                                color: Color(0xFF8A8A8A),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        SizedBox(height: 4),
+                        Text(
+                            'Vous serez notifié dès que votre commande\névolue.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Color(0xFFAAAAAA), fontSize: 12)),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    final data = docs[i].data() as Map<String, dynamic>;
+                    final isRead = data['lu'] == true;
+                    final ts = data['createdAt'] as Timestamp?;
+                    final type = data['type'] ?? 'info';
+                    return _NotifCard(
+                      notifId: docs[i].id,
+                      title: data['titre'] ?? '',
+                      body: data['corps'] ?? '',
+                      time: NotificationService.timeAgo(ts),
+                      icon: NotificationService.iconForType(type),
+                      isRead: isRead,
+                      type: type,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -22,323 +76,200 @@ class NotificationsScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      color: const Color(0xFFFF6B35),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A0A2E), Color(0xFF1E1B4B)],
+        ),
+      ),
       padding: const EdgeInsets.fromLTRB(20, 52, 20, 20),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(10),
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
+              child: const Icon(Icons.arrow_back,
+                  color: Colors.white, size: 20),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           const Expanded(
-            child: Text(
-              'Notifications',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Notifications',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800)),
+                Text('Suivez l\'état de vos commandes',
+                    style:
+                        TextStyle(color: Colors.white60, fontSize: 11)),
+              ],
             ),
           ),
-          StreamBuilder<QuerySnapshot>(
-            stream: NotificationService.streamNonLues(user.uid),
-            builder: (context, snap) {
-              final count = snap.data?.docs.length ?? 0;
-              if (count == 0) return const SizedBox();
-              return GestureDetector(
-                onTap: () => NotificationService.marquerToutesLues(user.uid),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Tout lire',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              );
-            },
+          TextButton(
+            onPressed: () =>
+                NotificationService.marquerToutesLues(user.uid),
+            child: const Text('Tout lire',
+                style: TextStyle(
+                    color: Color(0xFFFF9A6C),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: NotificationService.streamToutes(user.uid),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
-          );
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Center(
-                    child: Text('🔔', style: TextStyle(fontSize: 38)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Aucune notification',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Vous serez notifié ici de vos commandes',
-                  style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 13),
-                ),
-              ],
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (context, i) {
-            final data = docs[i].data() as Map<String, dynamic>;
-            final lu = data['lu'] ?? false;
-            final ts = data['createdAt'] as Timestamp?;
-            final time = ts != null ? _timeAgo(ts.toDate()) : '';
+class _NotifCard extends StatelessWidget {
+  final String notifId;
+  final String title;
+  final String body;
+  final String time;
+  final String icon;
+  final bool isRead;
+  final String type;
 
-            return Dismissible(
-              key: Key(docs[i].id),
-              direction: DismissDirection.endToStart,
-              onDismissed: (_) =>
-                  NotificationService.supprimer(docs[i].id),
-              background: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                child: const Icon(Icons.delete_outline,
-                    color: Colors.white, size: 22),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  if (!lu) NotificationService.marquerLue(docs[i].id);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: lu ? Colors.white : const Color(0xFFFFF3EE),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: lu
-                          ? const Color(0xFFEDEDED)
-                          : const Color(0xFFFFB89A),
-                      width: lu ? 0.5 : 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: lu
-                              ? const Color(0xFFF5F5F5)
-                              : const Color(0xFFFF6B35).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _getIcon(data['type'] ?? 'commande',
-                                data['titre'] ?? ''),
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    data['titre'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: lu
-                                          ? FontWeight.w600
-                                          : FontWeight.w800,
-                                      color: const Color(0xFF1A1A1A),
-                                    ),
-                                  ),
-                                ),
-                                if (!lu)
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFFF6B35),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data['corps'] ?? '',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF8A8A8A),
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              time,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFFCCCCCC),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  const _NotifCard({
+    required this.notifId,
+    required this.title,
+    required this.body,
+    required this.time,
+    required this.icon,
+    required this.isRead,
+    required this.type,
+  });
 
-  String _getIcon(String type, String titre) {
-    if (titre.startsWith('🔔')) return '🔔';
-    if (titre.startsWith('👨‍🍳')) return '👨‍🍳';
-    if (titre.startsWith('✅')) return '✅';
-    if (titre.startsWith('❌')) return '❌';
-    if (titre.startsWith('💰')) return '💰';
+  Color get _accentColor {
     switch (type) {
-      case 'wallet':
-        return '💰';
-      case 'systeme':
-        return '⚙️';
-      default:
-        return '📦';
+      case 'commande_status': return const Color(0xFFFF6B35);
+      case 'nouvelle_commande': return const Color(0xFF22C55E);
+      default: return const Color(0xFF3B82F6);
     }
   }
 
-  String _timeAgo(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-    if (diff.inDays < 7) return 'Il y a ${diff.inDays}j';
-    return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-/// Widget cloche avec badge pour les AppBars
-class NotificationBell extends StatelessWidget {
-  final UserEntity user;
-  final Color color;
-
-  const NotificationBell({
-    super.key,
-    required this.user,
-    this.color = Colors.white,
-  });
-
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: NotificationService.streamNonLues(user.uid),
-      builder: (context, snap) {
-        final count = snap.data?.docs.length ?? 0;
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => NotificationsScreen(user: user),
-            ),
+    return Dismissible(
+      key: Key(notifId),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => NotificationService.supprimer(notifId),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 22),
+            SizedBox(height: 4),
+            Text('Supprimer', style: TextStyle(
+                color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          if (!isRead) NotificationService.marquerLue(notifId);
+        },
+        child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: isRead ? Colors.white : const Color(0xFFFFF8F5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isRead
+                ? const Color(0xFFEDEDED)
+                : _accentColor.withOpacity(0.3),
+            width: isRead ? 0.5 : 1.5,
           ),
-          child: Stack(
-            clipBehavior: Clip.none,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Icône
               Container(
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: _accentColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white38),
                 ),
-                child: Icon(Icons.notifications_outlined,
-                    color: color, size: 20),
+                child: Center(
+                  child:
+                      Text(icon, style: const TextStyle(fontSize: 22)),
+                ),
               ),
-              if (count > 0)
-                Positioned(
-                  top: -3,
-                  right: -3,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        count > 9 ? '9+' : '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isRead
+                                  ? FontWeight.w600
+                                  : FontWeight.w800,
+                              color: const Color(0xFF1A1A1A),
+                            ),
+                          ),
                         ),
-                      ),
+                        Text(time,
+                            style: const TextStyle(
+                                color: Color(0xFFAAAAAA),
+                                fontSize: 10)),
+                      ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      body,
+                      style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 12,
+                          height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              // Point non-lu
+              if (!isRead) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _accentColor,
+                    shape: BoxShape.circle,
                   ),
                 ),
+              ],
             ],
           ),
-        );
-      },
+        ),
+      ),
+      ),
     );
   }
 }

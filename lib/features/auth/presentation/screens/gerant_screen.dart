@@ -180,7 +180,27 @@ class _GerantScreenState extends ConsumerState<GerantScreen> {
                     final isRead = data['lu'] == true;
                     final ts = data['createdAt'] as Timestamp?;
                     final type = data['type'] ?? 'info';
-                    return GestureDetector(
+                    return Dismissible(
+                      key: Key(docs[i].id),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (_) => NotificationService.supprimer(docs[i].id),
+                      background: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(16)),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.delete_outline, color: Colors.white, size: 22),
+                            SizedBox(height: 4),
+                            Text('Supprimer', style: TextStyle(
+                                color: Colors.white, fontSize: 10,
+                                fontWeight: FontWeight.w600)),
+                          ])),
+                      child: GestureDetector(
                       onTap: () => NotificationService.marquerLue(docs[i].id),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -225,6 +245,7 @@ class _GerantScreenState extends ConsumerState<GerantScreen> {
                                     color: Color(0xFFFF6B35), shape: BoxShape.circle)),
                           ],
                         ]),
+                      ),
                       ),
                     );
                   },
