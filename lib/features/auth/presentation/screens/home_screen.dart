@@ -27,8 +27,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   static const _categories = [
     {'label': 'Tous',    'emoji': '🍽️', 'color': '0xFF1A1A1A'},
-    {'label': 'Express', 'emoji': '⚡',  'color': '0xFFFF6B35'},
-    {'label': 'Entrées', 'emoji': '🥗',  'color': '0xFF3B82F6'},
+    {'label': 'Petit déjeuner', 'emoji': '🌅', 'color': '0xFF6366F1'},
+    {'label': 'Déjeuner',      'emoji': '☀️',  'color': '0xFF10B981'},
+    {'label': 'Dîner',         'emoji': '🌙',  'color': '0xFF8B5CF6'},
     {'label': 'Boissons','emoji': '🥤',  'color': '0xFF8B5CF6'},
   ];
 
@@ -358,8 +359,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         SliverToBoxAdapter(child: _buildGreeting()),
         SliverToBoxAdapter(child: _buildWallet()),
         SliverToBoxAdapter(child: _buildSearchBar()),
-        SliverToBoxAdapter(child: _buildCategories()),
-        SliverToBoxAdapter(child: _buildSectionHeader()),
         _buildPlatsList(),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
@@ -618,39 +617,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // ── SECTION HEADER ─────────────────────────────────────────────────────────
-
-  Widget _buildSectionHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Row(children: [
-        const Expanded(
-          child: Text('Au menu', style: TextStyle(
-              fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
-        ),
-        StreamBuilder<QuerySnapshot>(
-          stream: _db.collection('plats').where('disponible', isEqualTo: true).snapshots(),
-          builder: (_, snap) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-                color: const Color(0xFFFF6B35).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20)),
-            child: Text('${snap.data?.docs.length ?? 0} disponibles',
-                style: const TextStyle(
-                    color: Color(0xFFFF6B35), fontSize: 11, fontWeight: FontWeight.w700)),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  // ── LISTE PLATS (cards horizontales) ──────────────────────────────────────
+  // ── LISTE PLATS par catégorie (menu actif du jour) ─────────────────────────
 
   Widget _buildPlatsList() {
+    final today = DateTime.now();
+    final dateStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
     return StreamBuilder<QuerySnapshot>(
-      stream: _db.collection('plats').where('disponible', isEqualTo: true).snapshots(),
-      builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
+      stream: _db
+          .collection('menus')
+          .where('date', isEqualTo: dateStr)
+          .where('actif', isEqualTo: true)
+          .snapshots(),
+      builder: (_, menuSnap) {
+        if (menuSnap.connectionState == ConnectionState.waiting) {
           return const SliverToBoxAdapter(child: Padding(
             padding: EdgeInsets.all(40),
             child: Center(child: CircularProgressIndicator(
@@ -658,53 +639,186 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ));
         }
 
-        var docs = snap.data?.docs ?? [];
-
-        if (_cat != 'Tous') {
-          docs = docs.where((d) =>
-            (d.data() as Map)['categorie'].toString().toLowerCase() ==
-            _cat.toLowerCase()).toList();
-        }
-        if (_search.isNotEmpty) {
-          docs = docs.where((d) {
-            final m = d.data() as Map;
-            return (m['nom'] ?? '').toString().toLowerCase().contains(_search) ||
-                (m['description'] ?? '').toString().toLowerCase().contains(_search);
-          }).toList();
-        }
-
-        if (docs.isEmpty) {
+        // Pas de menu actif
+        if ((menuSnap.data?.docs ?? []).isEmpty) {
           return SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.all(40),
-            child: Column(children: [
-              const Text('🔍', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 12),
-              Text(
-                _search.isNotEmpty ? 'Aucun résultat pour "$_search"'
-                    : 'Aucun plat disponible dans "$_cat"',
-                style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-            ]),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+                      blurRadius: 12, offset: const Offset(0, 4))]),
+              child: const Column(children: [
+                Text('📋', style: TextStyle(fontSize: 48)),
+                SizedBox(height: 12),
+                Text('Aucun menu publié aujourd\'hui',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A))),
+                SizedBox(height: 6),
+                Text('L\'administration n\'a pas encore publié\nle menu de la journée.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 13)),
+              ]),
+            ),
           ));
         }
 
-        return SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) {
-                final doc = docs[i];
-                final data = doc.data() as Map<String, dynamic>;
-                return _PlatCard(
-                  platId: doc.id,
-                  data: data,
-                  user: widget.user,
-                );
-              },
-              childCount: docs.length,
+        final menuData = menuSnap.data!.docs.first.data() as Map<String, dynamic>;
+        final allPlatIds = <String>{
+          ...((menuData['petitDej'] as List?)?.cast<String>() ?? []),
+          ...((menuData['dejeuner'] as List?)?.cast<String>() ?? []),
+          ...((menuData['diner'] as List?)?.cast<String>() ?? []),
+        };
+
+        if (allPlatIds.isEmpty) {
+          return SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(20)),
+              child: const Column(children: [
+                Text('🍽️', style: TextStyle(fontSize: 48)),
+                SizedBox(height: 12),
+                Text('Menu vide', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                SizedBox(height: 6),
+                Text('Aucun plat n\'a encore été ajouté au menu.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 13)),
+              ]),
             ),
-          ),
+          ));
+        }
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: _db.collection('plats').where('disponible', isEqualTo: true).snapshots(),
+          builder: (_, platsSnap) {
+            if (platsSnap.connectionState == ConnectionState.waiting) {
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            }
+
+            // Plats du menu actif + disponibles
+            var docs = (platsSnap.data?.docs ?? [])
+                .where((d) => allPlatIds.contains(d.id))
+                .toList();
+
+            // Filtre recherche
+            if (_search.isNotEmpty) {
+              docs = docs.where((d) {
+                final m = d.data() as Map;
+                return (m['nom'] ?? '').toString().toLowerCase().contains(_search) ||
+                    (m['description'] ?? '').toString().toLowerCase().contains(_search);
+              }).toList();
+            }
+
+            if (docs.isEmpty) {
+              return SliverToBoxAdapter(child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(children: [
+                  const Text('🔍', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text(
+                    _search.isNotEmpty
+                        ? 'Aucun résultat pour "$_search"'
+                        : 'Aucun plat au menu',
+                    style: const TextStyle(color: Color(0xFFB0B0B0), fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ]),
+              ));
+            }
+
+            // ── Grouper par catégorie ──────────────────────────────────────
+            const catOrder = ['petit_dejeuner', 'dejeuner', 'diner', 'boissons'];
+            const catLabels = {
+              'petit_dejeuner': {'label': 'Petit déjeuner', 'emoji': '🌅'},
+              'dejeuner':       {'label': 'Déjeuner',       'emoji': '☀️'},
+              'diner':          {'label': 'Dîner',          'emoji': '🌙'},
+              'boissons':   {'label': 'Boissons',      'emoji': '🥤'},
+            };
+
+            final grouped = <String, List<QueryDocumentSnapshot>>{};
+            for (final doc in docs) {
+              final cat = (doc.data() as Map)['categorie']
+                  ?.toString().toLowerCase() ?? 'autres';
+              grouped.putIfAbsent(cat, () => []).add(doc);
+            }
+
+            // Construire les sliver widgets
+            final widgets = <Widget>[];
+            for (final cat in catOrder) {
+              final catDocs = grouped[cat];
+              if (catDocs == null || catDocs.isEmpty) continue;
+              final info = catLabels[cat] ?? {'label': cat, 'emoji': '🍽️'};
+
+              // En-tête catégorie
+              widgets.add(Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Row(children: [
+                  Text(info['emoji']!, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Text(info['label']!, style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A1A))),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFF6B35).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Text('${catDocs.length}',
+                        style: const TextStyle(
+                            color: Color(0xFFFF6B35), fontSize: 11,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+              ));
+
+              // Cards de la catégorie
+              for (final doc in catDocs) {
+                widgets.add(Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _PlatCard(
+                    platId: doc.id,
+                    data: doc.data() as Map<String, dynamic>,
+                    user: widget.user,
+                  ),
+                ));
+              }
+            }
+
+            // Catégories inconnues
+            final others = grouped.entries
+                .where((e) => !catOrder.contains(e.key))
+                .toList();
+            if (others.isNotEmpty) {
+              widgets.add(const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Text('🍽️ Autres', style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w800)),
+              ));
+              for (final entry in others) {
+                for (final doc in entry.value) {
+                  widgets.add(Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _PlatCard(
+                      platId: doc.id,
+                      data: doc.data() as Map<String, dynamic>,
+                      user: widget.user,
+                    ),
+                  ));
+                }
+              }
+            }
+
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => widgets[i],
+                childCount: widgets.length,
+              ),
+            );
+          },
         );
       },
     );
@@ -825,28 +939,33 @@ class _PlatCard extends StatelessWidget {
       }
     }
     switch (cat) {
-      case 'express': return '🍳'; case 'plat du jour': return '🍛';
-      case 'entrées': return '🥗'; default: return '🍽️';
+      case 'petit_dejeuner': return '🌅'; case 'dejeuner': return '☀️';
+      case 'diner': return '🌙'; default: return '🍽️';
     }
   }
 
   Color get _catColor {
     switch ((data['categorie'] ?? '').toString().toLowerCase()) {
-      case 'express': return const Color(0xFFFF6B35);
-      case 'plat du jour': return const Color(0xFF10B981);
-      case 'entrées': return const Color(0xFF3B82F6);
+      case 'petit_dejeuner': return const Color(0xFF6366F1);
+      case 'dejeuner': return const Color(0xFF10B981);
+      case 'diner': return const Color(0xFF8B5CF6);
       case 'boissons': return const Color(0xFF8B5CF6);
       default: return const Color(0xFF6B7280);
     }
   }
 
   String get _catLabel {
-    final cat = (data['categorie'] ?? '').toString();
-    if (cat.toLowerCase() == 'boissons') {
+    final cat = (data['categorie'] ?? '').toString().toLowerCase();
+    if (cat == 'boissons') {
       final m = {'cafe':'Café','the':'Thé','jus':'Jus','eau':'Eau','lait':'Lait'};
       return m[data['typeBoisson']] ?? 'Boisson';
     }
-    return cat;
+    const labels = {
+      'petit_dejeuner': 'Petit déjeuner',
+      'dejeuner': 'Déjeuner',
+      'diner': 'Dîner',
+    };
+    return labels[cat] ?? (data['categorie'] ?? '');
   }
 
   bool get _isBoisson => (data['categorie'] ?? '').toString().toLowerCase() == 'boissons';
