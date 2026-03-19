@@ -176,94 +176,122 @@ class _NotifCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (!isRead) NotificationService.marquerLue(notifId);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+    return Dismissible(
+      key: Key(notifId),
+      // ✅ Glisser vers la DROITE
+      direction: DismissDirection.startToEnd,
+      onDismissed: (_) => NotificationService.supprimer(notifId),
+      // ✅ Bouton rouge à GAUCHE
+      background: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: isRead ? Colors.white : const Color(0xFFFFF8F5),
+          color: const Color(0xFFEF4444),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isRead
-                ? const Color(0xFFEDEDED)
-                : _accentColor.withOpacity(0.3),
-            width: isRead ? 0.5 : 1.5,
-          ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icône
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(icon, style: const TextStyle(fontSize: 22)),
-                ),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 22),
+            SizedBox(height: 4),
+            Text(
+              'Supprimer',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(width: 12),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isRead
-                                  ? FontWeight.w600
-                                  : FontWeight.w800,
-                              color: const Color(0xFF1A1A1A),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          time,
-                          style: const TextStyle(
-                            color: Color(0xFFAAAAAA),
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      body,
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Point non-lu
-              if (!isRead) ...[
-                const SizedBox(width: 8),
+            ),
+          ],
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          if (!isRead) NotificationService.marquerLue(notifId);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: isRead ? Colors.white : const Color(0xFFFFF8F5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isRead
+                  ? const Color(0xFFEDEDED)
+                  : _accentColor.withOpacity(0.3),
+              width: isRead ? 0.5 : 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: _accentColor,
-                    shape: BoxShape.circle,
+                    color: _accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(icon, style: const TextStyle(fontSize: 22)),
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.w800,
+                                color: const Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              color: Color(0xFFAAAAAA),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        body,
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isRead) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _accentColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

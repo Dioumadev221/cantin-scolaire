@@ -12,7 +12,20 @@
           "package_name": "com.example.cantine_scolaire"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "980873062065-kduokdn3ra2bsf3i189nh65m3p8fs2lf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cantine_scolaire",
+            "certificate_hash": "76c6ed1c95946fe1bd145ab7bcd052e766ba4ebb"
+          }
+        },
+        {
+          "client_id": "980873062065-h58t8df5fg0fu9pdqcg5vn15luhhh50u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDqqKgqWsfnt9wtaoAdS_odcLbnMEmRA3k"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980873062065-h58t8df5fg0fu9pdqcg5vn15luhhh50u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
