@@ -964,10 +964,25 @@ class _MenusScreenState extends ConsumerState<MenusScreen> {
           ),
           child: Row(
             children: [
-              Text(
-                _getEmoji(data['categorie'] ?? ''),
-                style: const TextStyle(fontSize: 20),
-              ),
+              // ── Image ou emoji ──────────────────────────
+              (data['imageUrl'] as String?)?.isNotEmpty == true
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        data['imageUrl'],
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Text(
+                          _getEmoji(data['categorie'] ?? ''),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
+                    )
+                  : Text(
+                      _getEmoji(data['categorie'] ?? ''),
+                      style: const TextStyle(fontSize: 20),
+                    ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

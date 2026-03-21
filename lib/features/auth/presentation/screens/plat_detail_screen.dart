@@ -28,6 +28,7 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
       (d['categorie'] ?? '').toString().toLowerCase() == 'boissons';
   double get _prix => (d['prix'] ?? 0).toDouble();
   double get _total => _prix * _qty;
+  String? get _imageUrl => d['imageUrl'] as String?;
 
   String get _emoji {
     if (_isBoisson) {
@@ -47,6 +48,12 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
       }
     }
     switch ((d['categorie'] ?? '').toString().toLowerCase()) {
+      case 'petit_dejeuner':
+        return '🌅';
+      case 'dejeuner':
+        return '☀️';
+      case 'diner':
+        return '🌙';
       case 'express':
         return '🍳';
       case 'plat du jour':
@@ -60,6 +67,12 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
 
   Color get _color {
     switch ((d['categorie'] ?? '').toString().toLowerCase()) {
+      case 'petit_dejeuner':
+        return const Color(0xFF6366F1);
+      case 'dejeuner':
+        return const Color(0xFF10B981);
+      case 'diner':
+        return const Color(0xFF8B5CF6);
       case 'express':
         return const Color(0xFFFF6B35);
       case 'plat du jour':
@@ -67,9 +80,30 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
       case 'entrées':
         return const Color(0xFF3B82F6);
       case 'boissons':
-        return const Color(0xFF8B5CF6);
+        return const Color(0xFF0EA5E9);
       default:
         return const Color(0xFF6B7280);
+    }
+  }
+
+  String get _catLabel {
+    switch ((d['categorie'] ?? '').toString().toLowerCase()) {
+      case 'petit_dejeuner':
+        return 'Petit déjeuner';
+      case 'dejeuner':
+        return 'Déjeuner';
+      case 'diner':
+        return 'Dîner';
+      case 'boissons':
+        return 'Boisson';
+      case 'express':
+        return 'Express';
+      case 'plat du jour':
+        return 'Plat du jour';
+      case 'entrées':
+        return 'Entrée';
+      default:
+        return d['categorie'] ?? '';
     }
   }
 
@@ -77,144 +111,184 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final alreadyInCart = cartItems.any((e) => e.platId == widget.platId);
+    final cartCount = ref.read(cartProvider.notifier).nbArticles;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7F4),
-      body: Column(
+      body: Stack(
         children: [
-          _buildHero(cartItems.length),
-          Expanded(child: _buildBody()),
-          _buildBottomBar(alreadyInCart),
+          // ── Contenu scrollable ───────────────────────────────────────────
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeroImage(),
+                _buildContent(),
+                const SizedBox(height: 110),
+              ],
+            ),
+          ),
+
+          // ── Boutons flottants ────────────────────────────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: Color(0xFF1A1A1A),
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CartScreen(user: widget.user),
+                        ),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.shopping_bag_outlined,
+                              color: Color(0xFF1A1A1A),
+                              size: 20,
+                            ),
+                          ),
+                          if (cartCount > 0)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFF6B35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$cartCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Bottom bar fixe ──────────────────────────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildBottomBar(alreadyInCart),
+          ),
         ],
       ),
     );
   }
 
-  // ── HERO ───────────────────────────────────────────────────────────────────
+  // ── IMAGE HERO ─────────────────────────────────────────────────────────────
 
-  Widget _buildHero(int cartCount) {
-    return Container(
-      color: Colors.white,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F7F4),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Color(0xFF1A1A1A),
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      d['nom'] ?? '',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1A1A),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Bouton panier avec badge
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CartScreen(user: widget.user),
-                      ),
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F7F4),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Color(0xFF1A1A1A),
-                            size: 20,
-                          ),
-                        ),
-                        if (cartCount > 0)
-                          Positioned(
-                            top: -4,
-                            right: -4,
-                            child: Container(
-                              width: 18,
-                              height: 18,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFF6B35),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$cartCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: Container(
-                  width: 130,
-                  height: 130,
-                  decoration: BoxDecoration(
-                    color: _color.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(36),
-                  ),
-                  child: Center(
-                    child: Text(_emoji, style: const TextStyle(fontSize: 64)),
-                  ),
+  Widget _buildHeroImage() {
+    return SizedBox(
+      height: 320,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: _imageUrl != null && _imageUrl!.isNotEmpty
+                ? Image.network(
+                    _imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          // Gradient vers le bas
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFFF8F7F4).withOpacity(0.4),
+                    const Color(0xFFF8F7F4),
+                  ],
+                  stops: const [0.5, 0.82, 1.0],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // ── BODY ─────────────────────────────────────────────────────────────────────
+  Widget _placeholder() => Container(
+    color: _color.withOpacity(0.1),
+    child: Center(child: Text(_emoji, style: const TextStyle(fontSize: 100))),
+  );
 
-  Widget _buildBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+  // ── CONTENU ────────────────────────────────────────────────────────────────
+
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Nom + badge
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -222,7 +296,7 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
                 child: Text(
                   d['nom'] ?? '',
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 26,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF1A1A1A),
                   ),
@@ -231,15 +305,15 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
+                  horizontal: 12,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: _color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _isBoisson ? 'Boisson' : (d['categorie'] ?? ''),
+                  _catLabel,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -250,30 +324,47 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
+
           // Stats
-          Row(
-            children: [
-              _stat('💰', '${d['prix'] ?? 0} F', 'Prix'),
-              _statDiv(),
-              if (!_isBoisson) ...[
-                _stat('⏱️', '${d['tempsPreparation'] ?? 0} min', 'Prépa'),
-                _statDiv(),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
-              _stat('⭐', '4.9', 'Note'),
-              _statDiv(),
-              _stat(
-                '✅',
-                d['disponible'] == true ? 'Dispo' : 'Indispo',
-                'Statut',
-              ),
-            ],
+            ),
+            child: Row(
+              children: [
+                _stat('💰', '${d['prix'] ?? 0} F', 'Prix'),
+                _statDiv(),
+                if (!_isBoisson) ...[
+                  _stat('⏱️', '${d['tempsPreparation'] ?? 0} min', 'Prépa'),
+                  _statDiv(),
+                ],
+                _stat('⭐', '4.9', 'Note'),
+                _statDiv(),
+                _stat(
+                  d['disponible'] == true ? '✅' : '❌',
+                  d['disponible'] == true ? 'Dispo' : 'Indispo',
+                  'Statut',
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
+
+          // Description
           if ((d['description'] as String?)?.isNotEmpty == true) ...[
             const Text(
               'Description',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1A1A1A),
               ),
@@ -282,42 +373,57 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
             Text(
               d['description'] ?? '',
               style: const TextStyle(
-                color: Color(0xFF8A8A8A),
-                fontSize: 13,
-                height: 1.6,
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+                height: 1.7,
               ),
             ),
             const SizedBox(height: 20),
           ],
-          // Sélecteur quantité
-          Row(
-            children: [
-              const Text(
-                'Quantité',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
+
+          // Quantité
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              const Spacer(),
-              _qBtn(
-                Icons.remove,
-                _qty > 1 ? () => setState(() => _qty--) : null,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  '$_qty',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+              ],
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  'Quantité',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
-              ),
-              _qBtn(Icons.add, () => setState(() => _qty++)),
-            ],
+                const Spacer(),
+                _qBtn(
+                  Icons.remove,
+                  _qty > 1 ? () => setState(() => _qty--) : null,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '$_qty',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+                _qBtn(Icons.add, () => setState(() => _qty++)),
+              ],
+            ),
           ),
         ],
       ),
@@ -327,7 +433,7 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
   Widget _stat(String emoji, String val, String label) => Expanded(
     child: Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
+        Text(emoji, style: const TextStyle(fontSize: 22)),
         const SizedBox(height: 4),
         Text(
           val,
@@ -357,8 +463,8 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
     onTap: onTap,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: onTap != null
             ? const Color(0xFFFF6B35)
@@ -382,15 +488,14 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Total
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -410,18 +515,28 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
             ],
           ),
           const SizedBox(width: 16),
-          // Bouton ajouter au panier
           Expanded(
             child: GestureDetector(
               onTap: () => _ajouterAuPanier(alreadyInCart),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                height: 54,
+                height: 56,
                 decoration: BoxDecoration(
                   color: alreadyInCart
                       ? const Color(0xFF1A1A1A)
                       : const Color(0xFFFF6B35),
                   borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          (alreadyInCart
+                                  ? const Color(0xFF1A1A1A)
+                                  : const Color(0xFFFF6B35))
+                              .withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Row(
@@ -432,14 +547,14 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
                             ? Icons.shopping_bag
                             : Icons.add_shopping_cart,
                         color: Colors.white,
-                        size: 18,
+                        size: 20,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Text(
                         alreadyInCart ? 'Voir le panier' : 'Ajouter au panier',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -458,7 +573,6 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
 
   void _ajouterAuPanier(bool alreadyInCart) {
     if (alreadyInCart) {
-      // Naviguer directement vers le panier
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => CartScreen(user: widget.user)),
@@ -474,13 +588,13 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
             nom: d['nom'] ?? '',
             prix: _prix,
             emoji: _emoji,
+            imageUrl: d['imageUrl'] as String?,
             categorie: d['categorie'] ?? '',
             isBoisson: _isBoisson,
             quantite: _qty,
           ),
         );
 
-    // Feedback visuel
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -490,7 +604,10 @@ class _PlatDetailScreenState extends ConsumerState<PlatDetailScreen> {
             Expanded(
               child: Text(
                 '${d['nom']} ajouté au panier',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
             ),
             GestureDetector(

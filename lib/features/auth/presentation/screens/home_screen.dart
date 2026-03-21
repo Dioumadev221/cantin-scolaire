@@ -232,7 +232,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _showRecharge() {
     final libreCtrl = TextEditingController();
     const montants = [500, 1000, 2000, 5000];
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -245,7 +244,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           int? selected;
           bool loading = false;
           String? err;
-
           Future<void> recharger(double montant) async {
             setS(() {
               loading = true;
@@ -738,7 +736,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         : h < 19
         ? 'Une petite faim ?'
         : 'Le dîner est servi 🌙';
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Column(
@@ -935,7 +932,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             );
           }
           var docs = snap.data?.docs ?? [];
-          // Filtrer boissons par repas OU categorie
           docs = docs.where((d) {
             final m = d.data() as Map;
             final repas = (m['repas'] ?? '').toString().toLowerCase();
@@ -950,11 +946,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               );
             }).toList();
           }
-          if (docs.isEmpty) {
+          if (docs.isEmpty)
             return SliverToBoxAdapter(
               child: _emptyBox('🥤', 'Aucune boisson disponible'),
             );
-          }
           return SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             sliver: SliverList(
@@ -972,7 +967,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       );
     }
 
-    // MODE MENU
     return StreamBuilder<QuerySnapshot>(
       stream: _db
           .collection('menus')
@@ -993,7 +987,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           );
         }
-
         if ((menuSnap.data?.docs ?? []).isEmpty) {
           return SliverToBoxAdapter(
             child: _emptyBox(
@@ -1004,7 +997,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           );
         }
-
         final menuData =
             menuSnap.data!.docs.first.data() as Map<String, dynamic>;
         final petitDejIds =
@@ -1013,8 +1005,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             (menuData['dejeuner'] as List?)?.cast<String>() ?? [];
         final dinerIds = (menuData['diner'] as List?)?.cast<String>() ?? [];
         final allIds = {...petitDejIds, ...dejeunerIds, ...dinerIds};
-
-        if (allIds.isEmpty) {
+        if (allIds.isEmpty)
           return SliverToBoxAdapter(
             child: _emptyBox(
               '🍽️',
@@ -1022,7 +1013,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               sub: 'Aucun plat n\'a encore été ajouté au menu.',
             ),
           );
-        }
 
         return StreamBuilder<QuerySnapshot>(
           stream: _db
@@ -1030,14 +1020,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               .where('disponible', isEqualTo: true)
               .snapshots(),
           builder: (_, platsSnap) {
-            if (platsSnap.connectionState == ConnectionState.waiting) {
+            if (platsSnap.connectionState == ConnectionState.waiting)
               return const SliverToBoxAdapter(child: SizedBox.shrink());
-            }
-
             final allDocs = (platsSnap.data?.docs ?? [])
                 .where((d) => allIds.contains(d.id))
                 .toList();
-
             var filtered = allDocs;
             if (_search.isNotEmpty) {
               filtered = allDocs.where((d) {
@@ -1050,12 +1037,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     );
               }).toList();
             }
-
-            if (filtered.isEmpty) {
+            if (filtered.isEmpty)
               return SliverToBoxAdapter(
                 child: _emptyBox('🔍', 'Aucun résultat pour "$_search"'),
               );
-            }
 
             final petitDejDocs = filtered
                 .where((d) => petitDejIds.contains(d.id))
@@ -1067,7 +1052,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 .where((d) => dinerIds.contains(d.id))
                 .toList();
 
-            // Sections disponibles pour la navigation
             final sections = <Map<String, dynamic>>[];
             if (petitDejDocs.isNotEmpty)
               sections.add({
@@ -1292,7 +1276,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               DateTime(0);
           return tb.compareTo(ta);
         });
-
         if (docs.isEmpty) {
           return const Center(
             child: Column(
@@ -1318,7 +1301,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           );
         }
-
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           itemCount: docs.length,
@@ -1333,7 +1315,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECTION CARD — affiche 1 plat + bouton Voir plus → page dédiée
+// SECTION CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _SectionCard extends StatelessWidget {
   final String emoji;
@@ -1358,168 +1340,156 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final firstDoc = docs.first;
     final firstData = firstDoc.data() as Map<String, dynamic>;
+    final imageUrl = firstData['imageUrl'] as String?;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header section ─────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 22)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    titre,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Premier plat preview ────────────────────────────────────────────
-          GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PlatDetailScreen(
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => docs.length > 1
+              ? _CategoriePage(
+                  emoji: emoji,
+                  titre: titre,
+                  docs: docs,
+                  user: user,
+                  allSections: allSections,
+                  currentSection: currentSection,
+                )
+              : PlatDetailScreen(
                   platId: firstDoc.id,
                   data: firstData,
                   user: user,
                 ),
-              ),
+        ),
+      ),
+
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  // Image/emoji
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: _catColor(firstData).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _emoji(firstData),
-                        style: const TextStyle(fontSize: 42),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Nom
-                        Text(
-                          firstData['nom'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        // Description
-                        if ((firstData['description'] as String?)?.isNotEmpty ==
-                            true)
-                          Text(
-                            firstData['description'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFB0B0B0),
-                              height: 1.3,
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // ── Background image ──────────────────────────────────────────
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: _catColor(firstData).withOpacity(0.15),
+                          child: Center(
+                            child: Text(
+                              _emoji(firstData),
+                              style: const TextStyle(fontSize: 80),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        const SizedBox(height: 8),
-                        // Prix
-                        Text(
-                          '${firstData['prix'] ?? 0} FCFA',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFFFF6B35),
                           ),
                         ),
+                      )
+                    : Container(
+                        color: _catColor(firstData).withOpacity(0.15),
+                        child: Center(
+                          child: Text(
+                            _emoji(firstData),
+                            style: const TextStyle(fontSize: 80),
+                          ),
+                        ),
+                      ),
+              ),
+              // ── Gradient overlay ──────────────────────────────────────────
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.75),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Bouton Voir plus ────────────────────────────────────────────────
-          if (docs.length > 1)
-            GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _CategoriePage(
-                    emoji: emoji,
-                    titre: titre,
-                    docs: docs,
-                    user: user,
-                    allSections: allSections,
-                    currentSection: currentSection,
-                  ),
                 ),
               ),
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F7F4),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFFF6B35).withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                ),
+              // ── Titre catégorie en haut ───────────────────────────────────
+              Positioned(
+                top: 14,
+                left: 16,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Explorer →',
-                      style: TextStyle(
-                        color: Color(0xFFFF6B35),
-                        fontSize: 13,
+                    Text(emoji, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 6),
+                    Text(
+                      titre,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
+                        shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
                       ),
                     ),
                   ],
                 ),
               ),
-            )
-          else
-            const SizedBox(height: 14),
-        ],
+              // ── Infos plat en bas ─────────────────────────────────────────
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        firstData['nom'] ?? '',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if ((firstData['description'] as String?)?.isNotEmpty ==
+                          true) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          firstData['description'] ?? '',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Text(
+                        '${firstData['prix'] ?? 0} FCFA',
+                        style: const TextStyle(
+                          color: Color(0xFFFF6B35),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1556,7 +1526,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAGE CATÉGORIE — liste complète + navigation entre catégories
+// PAGE CATÉGORIE
 // ─────────────────────────────────────────────────────────────────────────────
 class _CategoriePage extends StatefulWidget {
   final String emoji;
@@ -1609,7 +1579,6 @@ class _CategoriePageState extends State<_CategoriePage> {
       backgroundColor: const Color(0xFFF8F7F4),
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────────────
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF1A1A1A),
@@ -1673,8 +1642,6 @@ class _CategoriePageState extends State<_CategoriePage> {
                     ),
                   ],
                 ),
-
-                // ── Navigation entre catégories ───────────────────────────────
                 if (widget.allSections.length > 1) ...[
                   const SizedBox(height: 14),
                   SingleChildScrollView(
@@ -1732,8 +1699,6 @@ class _CategoriePageState extends State<_CategoriePage> {
               ],
             ),
           ),
-
-          // ── Liste des plats ──────────────────────────────────────────────────
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
@@ -1803,22 +1768,12 @@ class _PlatCard extends StatelessWidget {
     }
   }
 
-  String get _catLabel {
-    final cat = (data['categorie'] ?? '').toString().toLowerCase();
-    const labels = {
-      'petit_dejeuner': 'Petit déjeuner',
-      'dejeuner': 'Déjeuner',
-      'diner': 'Dîner',
-      'boissons': 'Boisson',
-    };
-    return labels[cat] ?? (data['categorie'] ?? '');
-  }
-
-  bool get _isBoisson =>
-      (data['categorie'] ?? '').toString().toLowerCase() == 'boissons';
-
+  @override
   @override
   Widget build(BuildContext context) {
+    final imageUrl = data['imageUrl'] as String?;
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -1828,96 +1783,160 @@ class _PlatCard extends StatelessWidget {
         ),
       ),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: _catColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Center(
-                  child: Text(_emoji, style: const TextStyle(fontSize: 36)),
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── IMAGE ────────────────────────────────────────────────────────
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 6),
-                    Text(
-                      data['nom'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1A1A),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if ((data['description'] as String?)?.isNotEmpty ==
-                        true) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        data['description'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFB0B0B0),
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${data['prix'] ?? 0} FCFA',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1A1A1A),
+              child: Stack(
+                children: [
+                  SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: hasImage
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: _catColor.withOpacity(0.1),
+                              child: Center(
+                                child: Text(
+                                  _emoji,
+                                  style: const TextStyle(fontSize: 64),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: _catColor.withOpacity(0.08),
+                            child: Center(
+                              child: Text(
+                                _emoji,
+                                style: const TextStyle(fontSize: 64),
+                              ),
                             ),
                           ),
+                  ),
+                  // Gradient
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.12),
+                          ],
                         ),
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6B35),
-                            borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  // Badge prix
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
                           ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 20,
+                        ],
+                      ),
+                      child: Text(
+                        '${data['prix'] ?? 0} FCFA',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFF6B35),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── INFOS ────────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data['nom'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1A1A),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if ((data['description'] as String?)?.isNotEmpty ==
+                            true) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            data['description'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFB0B0B0),
+                              height: 1.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B35),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6B35).withOpacity(0.4),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 22),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

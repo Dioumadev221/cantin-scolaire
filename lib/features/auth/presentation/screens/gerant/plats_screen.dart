@@ -5,6 +5,9 @@ import '../../../../auth/domain/entities/user_entity.dart';
 import '../../providers/auth_provider.dart';
 import '../login_screen.dart';
 import 'profil_gerant_screen.dart';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 class PlatsScreen extends ConsumerStatefulWidget {
   final UserEntity user;
@@ -27,7 +30,6 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
   ];
   final _firestore = FirebaseFirestore.instance;
 
-  // Types de boissons disponibles
   static const List<Map<String, String>> _typeBoissons = [
     {'value': 'cafe', 'label': 'Café', 'emoji': '☕'},
     {'value': 'the', 'label': 'Thé', 'emoji': '🍵'},
@@ -43,9 +45,7 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
     super.dispose();
   }
 
-  bool _isDispo(dynamic val) {
-    return val == true || val == 'true' || val == 1;
-  }
+  bool _isDispo(dynamic val) => val == true || val == 'true' || val == 1;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +89,6 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                   ),
                 ],
               ),
-              // ── Avatar + PopupMenu ──────────────────────────────────────────
               PopupMenuButton<String>(
                 offset: const Offset(0, 54),
                 shape: RoundedRectangleBorder(
@@ -208,14 +207,13 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
               final dispos = docs
                   .where((d) => _isDispo((d.data() as Map)['disponible']))
                   .length;
-              final indispos = total - dispos;
               return Row(
                 children: [
                   _buildKpi('$total', 'Total plats'),
                   const SizedBox(width: 8),
                   _buildKpi('$dispos', 'Disponibles'),
                   const SizedBox(width: 8),
-                  _buildKpi('$indispos', 'Indisponibles'),
+                  _buildKpi('${total - dispos}', 'Indisponibles'),
                 ],
               );
             },
@@ -288,7 +286,11 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                 _searchCtrl.clear();
                 setState(() => _searchQuery = '');
               },
-              child: const Icon(Icons.close, color: Color(0xFF8A8A8A), size: 16),
+              child: const Icon(
+                Icons.close,
+                color: Color(0xFF8A8A8A),
+                size: 16,
+              ),
             )
           else
             Container(
@@ -321,8 +323,7 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
             onTap: () => setState(() => _selectedCategorie = cat),
             child: Container(
               margin: const EdgeInsets.only(right: 8),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: isActive ? const Color(0xFFFF6B35) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -338,8 +339,7 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color:
-                      isActive ? Colors.white : const Color(0xFF8A8A8A),
+                  color: isActive ? Colors.white : const Color(0xFF8A8A8A),
                 ),
               ),
             ),
@@ -390,10 +390,8 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
             final nom = (data['nom'] ?? '').toString().toLowerCase();
-            final desc =
-                (data['description'] ?? '').toString().toLowerCase();
-            return nom.contains(_searchQuery) ||
-                desc.contains(_searchQuery);
+            final desc = (data['description'] ?? '').toString().toLowerCase();
+            return nom.contains(_searchQuery) || desc.contains(_searchQuery);
           }).toList();
         }
 
@@ -409,7 +407,9 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                       ? 'Aucun résultat pour "$_searchQuery"'
                       : 'Aucun plat dans "$_selectedCategorie"',
                   style: const TextStyle(
-                      color: Color(0xFF8A8A8A), fontSize: 14),
+                    color: Color(0xFF8A8A8A),
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
@@ -432,9 +432,10 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
   Widget _buildPlatCard(String id, Map<String, dynamic> data) {
     final dispo = _isDispo(data['disponible']);
     final repas = data['repas'] ?? '';
-    final isBoisson = (data['categorie'] ?? '').toString().toLowerCase() ==
-        'boissons';
+    final isBoisson =
+        (data['categorie'] ?? '').toString().toLowerCase() == 'boissons';
     final typeBoisson = data['typeBoisson'] ?? '';
+    final imageUrl = data['imageUrl'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -459,13 +460,29 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                         color: const Color(0xFFFFF3EE),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(
-                        child: Text(
-                          isBoisson
-                              ? _getEmojiBoisson(typeBoisson)
-                              : _getEmoji(data['categorie'] ?? ''),
-                          style: const TextStyle(fontSize: 30),
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: imageUrl != null && imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    isBoisson
+                                        ? _getEmojiBoisson(typeBoisson)
+                                        : _getEmoji(data['categorie'] ?? ''),
+                                    style: const TextStyle(fontSize: 30),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  isBoisson
+                                      ? _getEmojiBoisson(typeBoisson)
+                                      : _getEmoji(data['categorie'] ?? ''),
+                                  style: const TextStyle(fontSize: 30),
+                                ),
+                              ),
                       ),
                     ),
                     Positioned(
@@ -493,7 +510,9 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                       Text(
                         data['nom'] ?? '',
                         style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 3),
                       Row(
@@ -503,18 +522,25 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                                 ? '${data['categorie'] ?? ''} · ${_getLabelBoisson(typeBoisson)}'
                                 : '${data['categorie'] ?? ''} · ${data['tempsPreparation'] ?? 0} min',
                             style: const TextStyle(
-                                color: Color(0xFF8A8A8A), fontSize: 11),
+                              color: Color(0xFF8A8A8A),
+                              fontSize: 11,
+                            ),
                           ),
                           if (!isBoisson && repas.isNotEmpty) ...[
-                            const Text(' · ',
-                                style: TextStyle(
-                                    color: Color(0xFF8A8A8A), fontSize: 11)),
+                            const Text(
+                              ' · ',
+                              style: TextStyle(
+                                color: Color(0xFF8A8A8A),
+                                fontSize: 11,
+                              ),
+                            ),
                             Text(
                               _getRepasLabel(repas),
                               style: const TextStyle(
-                                  color: Color(0xFFFF6B35),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600),
+                                color: Color(0xFFFF6B35),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ],
@@ -537,23 +563,28 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
           Container(
             decoration: const BoxDecoration(
               border: Border(
-                  top: BorderSide(color: Color(0xFFEDEDED), width: 0.5)),
+                top: BorderSide(color: Color(0xFFEDEDED), width: 0.5),
+              ),
             ),
             child: Row(
               children: [
-                _buildAction('✏️ Modifier', const Color(0xFFFF6B35),
-                    () => _showEditDialog(id, data)),
+                _buildAction(
+                  '✏️ Modifier',
+                  const Color(0xFFFF6B35),
+                  () => _showEditDialog(id, data),
+                ),
                 _buildActionSep(),
                 _buildAction(
                   dispo ? '● Disponible' : '✕ Indispo',
-                  dispo
-                      ? const Color(0xFF22C55E)
-                      : const Color(0xFFEF4444),
+                  dispo ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
                   () => _toggleDispo(id, dispo),
                 ),
                 _buildActionSep(),
-                _buildAction('🗑️ Suppr.', const Color(0xFFEF4444),
-                    () => _deletePlat(id)),
+                _buildAction(
+                  '🗑️ Suppr.',
+                  const Color(0xFFEF4444),
+                  () => _deletePlat(id),
+                ),
               ],
             ),
           ),
@@ -572,24 +603,24 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildActionSep() {
-    return Container(width: 0.5, height: 36, color: const Color(0xFFEDEDED));
-  }
+  Widget _buildActionSep() =>
+      Container(width: 0.5, height: 36, color: const Color(0xFFEDEDED));
 
   // ── BOUTON AJOUTER ───────────────────────────────────────────────────────────
 
   Widget _buildAddButton() {
     return GestureDetector(
-      onTap: () => _showTypeSelection(),
+      onTap: _showTypeSelection,
       child: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -605,9 +636,10 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
             Text(
               'Ajouter un nouveau plat',
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700),
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -615,7 +647,7 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
     );
   }
 
-  // ── SÉLECTION DU TYPE ────────────────────────────────────────────────────────
+  // ── SÉLECTION TYPE ───────────────────────────────────────────────────────────
 
   void _showTypeSelection() {
     showModalBottomSheet(
@@ -673,14 +705,18 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                           Text(
                             'Plat',
                             style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w800),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           SizedBox(height: 3),
                           Text(
                             'Express, plat du jour\nentrée...',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                fontSize: 11, color: Color(0xFF8A8A8A)),
+                              fontSize: 11,
+                              color: Color(0xFF8A8A8A),
+                            ),
                           ),
                         ],
                       ),
@@ -711,14 +747,18 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                           Text(
                             'Boisson',
                             style: TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w800),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           SizedBox(height: 3),
                           Text(
                             'Café, thé, jus\neau, lait...',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                fontSize: 11, color: Color(0xFF8A8A8A)),
+                              fontSize: 11,
+                              color: Color(0xFF8A8A8A),
+                            ),
                           ),
                         ],
                       ),
@@ -733,15 +773,18 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
     );
   }
 
-  // ── FORMULAIRE BOISSON (simplifié) ───────────────────────────────────────────
+  // ── FORMULAIRE BOISSON ───────────────────────────────────────────────────────
 
   void _showBoissonDialog({String? id, Map<String, dynamic>? data}) {
     final nomCtrl = TextEditingController(text: data?['nom'] ?? '');
-    final prixCtrl =
-        TextEditingController(text: data?['prix']?.toString() ?? '');
-    final descCtrl =
-        TextEditingController(text: data?['description'] ?? '');
+    final prixCtrl = TextEditingController(
+      text: data?['prix']?.toString() ?? '',
+    );
+    final descCtrl = TextEditingController(text: data?['description'] ?? '');
     String typeBoisson = data?['typeBoisson'] ?? 'cafe';
+    String? imageUrl = data?['imageUrl'];
+    File? imageFile;
+    bool uploading = false;
 
     showModalBottomSheet(
       context: context,
@@ -783,17 +826,74 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                   Text(
                     id == null ? 'Nouvelle boisson' : 'Modifier la boisson',
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // ── Type de boisson ──────────────────────────────────────────
+              // ── Sélecteur image ──────────────────────────────────────────
+              GestureDetector(
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final picked = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 70,
+                  );
+                  if (picked != null) {
+                    setModalState(() => imageFile = File(picked.path));
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F0EB),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFF93C5FD),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(imageFile!, fit: BoxFit.cover),
+                        )
+                      : imageUrl != null && imageUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(imageUrl!, fit: BoxFit.cover),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(
+                              Icons.add_a_photo_outlined,
+                              color: Color(0xFF3B82F6),
+                              size: 30,
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Ajouter une photo',
+                              style: TextStyle(
+                                color: Color(0xFF3B82F6),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Type boisson
               const Text(
                 'Type de boisson',
-                style:
-                    TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -802,12 +902,13 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                 children: _typeBoissons.map((t) {
                   final isSelected = typeBoisson == t['value'];
                   return GestureDetector(
-                    onTap: () =>
-                        setModalState(() => typeBoisson = t['value']!),
+                    onTap: () => setModalState(() => typeBoisson = t['value']!),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 9),
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFFEFF6FF)
@@ -823,8 +924,10 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(t['emoji']!,
-                              style: const TextStyle(fontSize: 16)),
+                          Text(
+                            t['emoji']!,
+                            style: const TextStyle(fontSize: 16),
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             t['label']!,
@@ -845,16 +948,10 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 16),
-
-              // ── Nom ─────────────────────────────────────────────────────
               _buildModalField('Nom de la boisson', nomCtrl),
               const SizedBox(height: 12),
-
-              // ── Description ──────────────────────────────────────────────
               _buildModalField('Description (optionnel)', descCtrl),
               const SizedBox(height: 12),
-
-              // ── Prix ─────────────────────────────────────────────────────
               _buildModalField('Prix (FCFA)', prixCtrl, isNumber: true),
               const SizedBox(height: 20),
 
@@ -869,35 +966,71 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () {
-                    final boissonData = {
-                      'nom': nomCtrl.text.trim(),
-                      'description': descCtrl.text.trim(),
-                      'prix': double.tryParse(prixCtrl.text) ?? 0,
-                      'categorie': 'boissons',
-                      'typeBoisson': typeBoisson,
-                      'repas': 'boisson',
-                      'tempsPreparation': 0,
-                      'disponible': true,
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    };
-                    if (id == null) {
-                      boissonData['createdAt'] =
-                          FieldValue.serverTimestamp();
-                      _firestore.collection('plats').add(boissonData);
-                    } else {
-                      _firestore
-                          .collection('plats')
-                          .doc(id)
-                          .update(boissonData);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    id == null ? 'Ajouter la boisson' : 'Enregistrer',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  onPressed: uploading
+                      ? null
+                      : () async {
+                          setModalState(() => uploading = true);
+                          try {
+                            String platId =
+                                id ?? _firestore.collection('plats').doc().id;
+                            String? finalImageUrl = imageUrl;
+
+                            if (imageFile != null) {
+                              final ref = FirebaseStorage.instance.ref().child(
+                                'plats/$platId.jpg',
+                              );
+                              await ref.putFile(imageFile!);
+                              finalImageUrl = await ref.getDownloadURL();
+                            }
+
+                            final boissonData = <String, dynamic>{
+                              'nom': nomCtrl.text.trim(),
+                              'description': descCtrl.text.trim(),
+                              'prix': double.tryParse(prixCtrl.text) ?? 0,
+                              'categorie': 'boissons',
+                              'typeBoisson': typeBoisson,
+                              'repas': 'boisson',
+                              'tempsPreparation': 0,
+                              'disponible': true,
+                              if (finalImageUrl != null)
+                                'imageUrl': finalImageUrl,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            };
+
+                            if (id == null) {
+                              boissonData['createdAt'] =
+                                  FieldValue.serverTimestamp();
+                              await _firestore
+                                  .collection('plats')
+                                  .doc(platId)
+                                  .set(boissonData);
+                            } else {
+                              await _firestore
+                                  .collection('plats')
+                                  .doc(id)
+                                  .update(boissonData);
+                            }
+                            if (context.mounted) Navigator.pop(context);
+                          } catch (e) {
+                            setModalState(() => uploading = false);
+                          }
+                        },
+                  child: uploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          id == null ? 'Ajouter la boisson' : 'Enregistrer',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -921,14 +1054,18 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
 
   void _showPlatDialog({String? id, Map<String, dynamic>? data}) {
     final nomCtrl = TextEditingController(text: data?['nom'] ?? '');
-    final prixCtrl =
-        TextEditingController(text: data?['prix']?.toString() ?? '');
-    final descCtrl =
-        TextEditingController(text: data?['description'] ?? '');
+    final prixCtrl = TextEditingController(
+      text: data?['prix']?.toString() ?? '',
+    );
+    final descCtrl = TextEditingController(text: data?['description'] ?? '');
     final tempsCtrl = TextEditingController(
-        text: data?['tempsPreparation']?.toString() ?? '');
+      text: data?['tempsPreparation']?.toString() ?? '',
+    );
     String categorie = data?['categorie'] ?? 'express';
     String repas = data?['repas'] ?? 'petit_dejeuner';
+    String? imageUrl = data?['imageUrl'];
+    File? imageFile;
+    bool uploading = false;
 
     showModalBottomSheet(
       context: context,
@@ -962,17 +1099,78 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Text(_getEmoji(categorie),
-                      style: const TextStyle(fontSize: 28)),
+                  Text(
+                    _getEmoji(categorie),
+                    style: const TextStyle(fontSize: 28),
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     id == null ? 'Nouveau plat' : 'Modifier le plat',
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
+
+              // ── Sélecteur image ──────────────────────────────────────────
+              GestureDetector(
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final picked = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 70,
+                  );
+                  if (picked != null) {
+                    setModalState(() => imageFile = File(picked.path));
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F0EB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFFFB89A),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(imageFile!, fit: BoxFit.cover),
+                        )
+                      : imageUrl != null && imageUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(imageUrl!, fit: BoxFit.cover),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(
+                              Icons.add_a_photo_outlined,
+                              color: Color(0xFFFF6B35),
+                              size: 32,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Ajouter une photo',
+                              style: TextStyle(
+                                color: Color(0xFFFF6B35),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               _buildModalField('Nom du plat', nomCtrl),
               const SizedBox(height: 12),
               _buildModalField('Description', descCtrl),
@@ -980,19 +1178,27 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildModalField('Prix (FCFA)', prixCtrl,
-                        isNumber: true),
+                    child: _buildModalField(
+                      'Prix (FCFA)',
+                      prixCtrl,
+                      isNumber: true,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildModalField('Temps (min)', tempsCtrl,
-                        isNumber: true),
+                    child: _buildModalField(
+                      'Temps (min)',
+                      tempsCtrl,
+                      isNumber: true,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const Text('Repas',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text(
+                'Repas',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: repas,
@@ -1004,22 +1210,28 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 items: const [
                   DropdownMenuItem(
-                      value: 'petit_dejeuner',
-                      child: Text('🌅 Petit déjeuner')),
+                    value: 'petit_dejeuner',
+                    child: Text('🌅 Petit déjeuner'),
+                  ),
                   DropdownMenuItem(
-                      value: 'dejeuner', child: Text('☀️ Déjeuner')),
-                  DropdownMenuItem(
-                      value: 'diner', child: Text('🌙 Dîner')),
+                    value: 'dejeuner',
+                    child: Text('☀️ Déjeuner'),
+                  ),
+                  DropdownMenuItem(value: 'diner', child: Text('🌙 Dîner')),
                 ],
                 onChanged: (v) => setModalState(() => repas = v!),
               ),
               const SizedBox(height: 12),
-              const Text('Catégorie',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text(
+                'Catégorie',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: categorie,
@@ -1031,20 +1243,22 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 items: const [
+                  DropdownMenuItem(value: 'express', child: Text('🍳 Express')),
                   DropdownMenuItem(
-                      value: 'express', child: Text('🍳 Express')),
-                  DropdownMenuItem(
-                      value: 'plat du jour',
-                      child: Text('🍛 Plat du jour')),
-                  DropdownMenuItem(
-                      value: 'entrées', child: Text('🥗 Entrées')),
+                    value: 'plat du jour',
+                    child: Text('🍛 Plat du jour'),
+                  ),
+                  DropdownMenuItem(value: 'entrées', child: Text('🥗 Entrées')),
                 ],
                 onChanged: (v) => setModalState(() => categorie = v!),
               ),
               const SizedBox(height: 20),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -1053,37 +1267,74 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  onPressed: () {
-                    final platData = {
-                      'nom': nomCtrl.text.trim(),
-                      'description': descCtrl.text.trim(),
-                      'prix': double.tryParse(prixCtrl.text) ?? 0,
-                      'categorie': categorie,
-                      'repas': repas,
-                      'tempsPreparation':
-                          int.tryParse(tempsCtrl.text) ?? 0,
-                      'disponible': true,
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    };
-                    if (id == null) {
-                      platData['createdAt'] =
-                          FieldValue.serverTimestamp();
-                      _firestore.collection('plats').add(platData);
-                    } else {
-                      _firestore
-                          .collection('plats')
-                          .doc(id)
-                          .update(platData);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    id == null ? 'Ajouter le plat' : 'Enregistrer',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  onPressed: uploading
+                      ? null
+                      : () async {
+                          setModalState(() => uploading = true);
+                          try {
+                            String platId =
+                                id ?? _firestore.collection('plats').doc().id;
+                            String? finalImageUrl = imageUrl;
+
+                            if (imageFile != null) {
+                              final ref = FirebaseStorage.instance.ref().child(
+                                'plats/$platId.jpg',
+                              );
+                              await ref.putFile(imageFile!);
+                              finalImageUrl = await ref.getDownloadURL();
+                            }
+
+                            final platData = <String, dynamic>{
+                              'nom': nomCtrl.text.trim(),
+                              'description': descCtrl.text.trim(),
+                              'prix': double.tryParse(prixCtrl.text) ?? 0,
+                              'categorie': categorie,
+                              'repas': repas,
+                              'tempsPreparation':
+                                  int.tryParse(tempsCtrl.text) ?? 0,
+                              'disponible': true,
+                              if (finalImageUrl != null)
+                                'imageUrl': finalImageUrl,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            };
+
+                            if (id == null) {
+                              platData['createdAt'] =
+                                  FieldValue.serverTimestamp();
+                              await _firestore
+                                  .collection('plats')
+                                  .doc(platId)
+                                  .set(platData);
+                            } else {
+                              await _firestore
+                                  .collection('plats')
+                                  .doc(id)
+                                  .update(platData);
+                            }
+                            if (context.mounted) Navigator.pop(context);
+                          } catch (e) {
+                            setModalState(() => uploading = false);
+                          }
+                        },
+                  child: uploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          id == null ? 'Ajouter le plat' : 'Enregistrer',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -1101,14 +1352,14 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,
-          keyboardType:
-              isNumber ? TextInputType.number : TextInputType.text,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF5F0EB),
@@ -1116,8 +1367,10 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
           ),
         ),
       ],
@@ -1126,9 +1379,8 @@ class _PlatsScreenState extends ConsumerState<PlatsScreen> {
 
   // ── ACTIONS ──────────────────────────────────────────────────────────────────
 
-  void _toggleDispo(String id, bool current) {
-    _firestore.collection('plats').doc(id).update({'disponible': !current});
-  }
+  void _toggleDispo(String id, bool current) =>
+      _firestore.collection('plats').doc(id).update({'disponible': !current});
 
   void _deletePlat(String id) {
     showDialog(

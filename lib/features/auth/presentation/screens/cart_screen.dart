@@ -31,7 +31,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             child: items.isEmpty
                 ? _buildEmpty(context)
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     children: [
                       ...items.map(
                         (item) => _ItemCard(
@@ -43,9 +43,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           onRemove: () => cart.retirer(item.platId),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       _buildSummary(items, cart.total),
-                      const SizedBox(height: 100),
+                      const SizedBox(height: 120),
                     ],
                   ),
           ),
@@ -55,32 +55,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── HEADER ──────────────────────────────────────────────────────────────────
+  // ── HEADER ───────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context, List<CartItem> items) {
+    final total = items.fold(0, (s, i) => s + i.quantite);
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 22),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 16),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: Colors.white12,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
                 Icons.arrow_back_ios_new,
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 size: 16,
               ),
             ),
@@ -93,36 +88,39 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 const Text(
                   'Mon panier',
                   style: TextStyle(
-                    color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
                 Text(
-                  '${items.length} article${items.length > 1 ? 's' : ''}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  '$total article${total > 1 ? 's' : ''}',
+                  style: const TextStyle(
+                    color: Color(0xFFB0B0B0),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
           if (items.isNotEmpty)
             GestureDetector(
-              onTap: () => _confirmVider(),
+              onTap: _confirmVider,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                  horizontal: 14,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white10,
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
                   'Vider',
                   style: TextStyle(
-                    color: Colors.white60,
+                    color: Color(0xFFEF4444),
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -132,7 +130,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── EMPTY ────────────────────────────────────────────────────────────────────
+  // ── EMPTY ─────────────────────────────────────────────────────────────────────
 
   Widget _buildEmpty(BuildContext context) {
     return Center(
@@ -140,21 +138,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 100,
-            height: 100,
+            width: 110,
+            height: 110,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
+              color: const Color(0xFFFFF3EE),
+              borderRadius: BorderRadius.circular(30),
             ),
             child: const Center(
-              child: Text('🛒', style: TextStyle(fontSize: 48)),
+              child: Text('🛒', style: TextStyle(fontSize: 52)),
             ),
           ),
           const SizedBox(height: 20),
           const Text(
             'Panier vide',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               color: Color(0xFF1A1A1A),
             ),
@@ -167,13 +165,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
           const SizedBox(height: 28),
           GestureDetector(
-            onTap: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
+            onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               decoration: BoxDecoration(
                 color: const Color(0xFFFF6B35),
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6B35).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: const Text(
                 'Voir le menu',
@@ -190,11 +194,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── RÉCAP ────────────────────────────────────────────────────────────────────
+  // ── RÉCAP ─────────────────────────────────────────────────────────────────────
 
   Widget _buildSummary(List<CartItem> items, double total) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -208,127 +211,212 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
       child: Column(
         children: [
-          const Row(
-            children: [
-              Text(
-                'Récapitulatif',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
+          // En-tête
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3EE),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: Text('🧾', style: TextStyle(fontSize: 16)),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Text(item.emoji, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item.nom,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B6B6B),
-                      ),
-                    ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Récapitulatif',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A1A),
                   ),
-                  Text(
-                    '×${item.quantite}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFFB0B0B0),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${item.sousTotal.toStringAsFixed(0)} F',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-          ),
-          Row(
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${total.toStringAsFixed(0)} FCFA',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFFFF6B35),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Indicateur solde
-          StreamBuilder<DocumentSnapshot>(
-            stream: _db.collection('users').doc(widget.user.uid).snapshots(),
-            builder: (_, snap) {
-              final solde =
-                  (snap.data?.data() as Map?)?['soldeWallet']?.toDouble() ?? 0;
-              final ok = solde >= total;
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: ok ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      ok
-                          ? Icons.check_circle_outline
-                          : Icons.warning_amber_outlined,
-                      size: 16,
-                      color: ok
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFDC2626),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        ok
-                            ? 'Solde suffisant · ${solde.toStringAsFixed(0)} FCFA disponible'
-                            : 'Solde insuffisant · ${solde.toStringAsFixed(0)} FCFA disponible',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: ok
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFFDC2626),
-                        ),
+          const Divider(height: 1, color: Color(0xFFF5F5F5)),
+
+          // Articles
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+            child: Column(
+              children: items
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F7F4),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child:
+                                  item.imageUrl != null &&
+                                      item.imageUrl!.isNotEmpty
+                                  ? Image.network(
+                                      item.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Center(
+                                        child: Text(
+                                          item.emoji,
+                                          style: const TextStyle(fontSize: 20),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        item.emoji,
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.nom,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1A1A1A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${item.prix.toStringAsFixed(0)} FCFA × ${item.quantite}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFFB0B0B0),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${item.sousTotal.toStringAsFixed(0)} F',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  )
+                  .toList(),
+            ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18),
+            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
+          ),
+
+          // Total
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+            child: Row(
+              children: [
+                const Text(
+                  'Total',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
-              );
-            },
+                const Spacer(),
+                Text(
+                  '${total.toStringAsFixed(0)} FCFA',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFFF6B35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Solde
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: _db.collection('users').doc(widget.user.uid).snapshots(),
+              builder: (_, snap) {
+                final solde =
+                    (snap.data?.data() as Map?)?['soldeWallet']?.toDouble() ??
+                    0;
+                final ok = solde >= total;
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ok
+                        ? const Color(0xFFF0FDF4)
+                        : const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        ok
+                            ? Icons.check_circle_outline
+                            : Icons.warning_amber_outlined,
+                        size: 18,
+                        color: ok
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ok ? 'Solde suffisant' : 'Solde insuffisant',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: ok
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFDC2626),
+                              ),
+                            ),
+                            Text(
+                              '${solde.toStringAsFixed(0)} FCFA disponible',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: ok
+                                    ? const Color(0xFF22C55E)
+                                    : const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -340,7 +428,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildCheckoutBar(List<CartItem> items, CartNotifier cart) {
     final total = cart.total;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -355,10 +443,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         onTap: _loading ? null : () => _passerCommande(items, total),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          height: 56,
+          height: 58,
           decoration: BoxDecoration(
             color: _loading ? const Color(0xFFCCCCCC) : const Color(0xFFFF6B35),
             borderRadius: BorderRadius.circular(18),
+            boxShadow: _loading
+                ? []
+                : [
+                    BoxShadow(
+                      color: const Color(0xFFFF6B35).withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -390,8 +487,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
+                    horizontal: 12,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white24,
@@ -401,7 +498,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     '${total.toStringAsFixed(0)} F',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -414,13 +511,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── PASSER LA COMMANDE (UNE SEULE commande groupée) ──────────────────────────
+  // ── PASSER LA COMMANDE ────────────────────────────────────────────────────────
 
   Future<void> _passerCommande(List<CartItem> items, double total) async {
     setState(() => _loading = true);
-
     try {
-      // Vérifier le solde
       final userDoc = await _db.collection('users').doc(widget.user.uid).get();
       final solde = (userDoc.data()?['soldeWallet'] ?? 0).toDouble();
 
@@ -428,22 +523,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         if (mounted) {
           setState(() => _loading = false);
           _snack(
-            'Solde insuffisant (${solde.toStringAsFixed(0)} FCFA disponible)',
+            'Solde insuffisant (${solde.toStringAsFixed(0)} FCFA)',
             error: true,
           );
         }
         return;
       }
 
-      // Numéro unique pour la commande groupée
       final numero =
           'CMD${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
-      // Statut global : si au moins un plat (non boisson), statut = recue
-      // Si tout est boisson, statut = prete
       final toutBoisson = items.every((i) => i.isBoisson);
-
-      // Construire la liste détaillée des articles
       final platsDetails = items
           .map(
             (i) => {
@@ -457,21 +546,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             },
           )
           .toList();
-
-      // Résumé lisible : "Riz + Thiebou + Jus"
       final resumePlats = items.length == 1
           ? items.first.nom
           : items.map((i) => i.nom).join(' + ');
 
-      // Créer la commande unique
       final commandeRef = await _db.collection('commandes').add({
         'numero': numero,
         'etudiantId': widget.user.uid,
         'etudiantNom': '${widget.user.prenom} ${widget.user.nom}',
-        // Compatibilité ancienne structure
         'platsIds': items.map((i) => i.platId).toList(),
         'nomPlat': resumePlats,
-        // Nouveau champ : liste complète des articles
         'platsDetails': platsDetails,
         'nbArticles': items.fold<int>(0, (s, i) => s + i.quantite),
         'montantTotal': total,
@@ -483,12 +567,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Débiter le wallet
       await _db.collection('users').doc(widget.user.uid).update({
         'soldeWallet': FieldValue.increment(-total),
       });
 
-      // Notifier les gérants (une seule notification groupée)
       await NotificationService.notifierNouvelleCommande(
         commandeId: commandeRef.id,
         commandeNumero: numero,
@@ -496,7 +578,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         nomPlat: resumePlats,
       );
 
-      // Vider le panier
       ref.read(cartProvider.notifier).vider();
 
       if (mounted) {
@@ -510,8 +591,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     }
   }
-
-  // ── VIDER CONFIRM ────────────────────────────────────────────────────────────
 
   void _confirmVider() {
     showDialog(
@@ -585,24 +664,38 @@ class _ItemCard extends StatelessWidget {
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onRemove(),
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: const Color(0xFFEF4444),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 24),
+            SizedBox(height: 4),
+            Text(
+              'Supprimer',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -610,18 +703,36 @@ class _ItemCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Image
             Container(
-              width: 58,
-              height: 58,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 color: const Color(0xFFF8F7F4),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Center(
-                child: Text(item.emoji, style: const TextStyle(fontSize: 28)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        item.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(
+                            item.emoji,
+                            style: const TextStyle(fontSize: 32),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          item.emoji,
+                          style: const TextStyle(fontSize: 32),
+                        ),
+                      ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -629,7 +740,7 @@ class _ItemCard extends StatelessWidget {
                   Text(
                     item.nom,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF1A1A1A),
                     ),
@@ -644,7 +755,7 @@ class _ItemCard extends StatelessWidget {
                       color: Color(0xFFB0B0B0),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       _qBtn(
@@ -655,12 +766,12 @@ class _ItemCard extends StatelessWidget {
                             : const Color(0xFFEEEEEE),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           '${item.quantite}',
                           style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
                             color: Color(0xFF1A1A1A),
                           ),
                         ),
@@ -677,7 +788,7 @@ class _ItemCard extends StatelessWidget {
                 Text(
                   '${item.sousTotal.toStringAsFixed(0)}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF1A1A1A),
                   ),
@@ -698,13 +809,13 @@ class _ItemCard extends StatelessWidget {
       GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 28,
-          height: 28,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: color.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 14, color: color),
+          child: Icon(icon, size: 16, color: color),
         ),
       );
 }
